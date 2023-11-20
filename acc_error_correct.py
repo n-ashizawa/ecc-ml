@@ -1,146 +1,96 @@
-import argparse
-import datetime
 import os
-import struct
+import csv
 
 import numpy as np
-from sklearn.metrics import accuracy_score
-import matplotlib.pyplot as plt
-
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.optim import lr_scheduler
-from torch.utils.data import DataLoader, TensorDataset
-from torchvision import datasets, transforms
+
+import matplotlib.pyplot as plt
 
 from network import *
 from utils import *
+from arguments import get_args
+from logger import get_logger, logging_args
 
 
-def calc_acc(args, model_before, model_after, model_decoded, save_dir):
+def calc_acc(args, model_before, model_after, model_decoded, save_dir, logging):
     model_before.eval()
     model_after.eval()
     model_decoded.eval()
 
-    # save parameter
+    # save parameters
+    # {"p_m":[], "s_m":[], "b_m":[]} m: before, after, decoded
     params_before = get_params_info(args, model_before)
-    params_before = get_params_info(args, model_before)
-    params_before = get_params_info(args, model_before)
-    params_info = {"before":[], "after":[], "decoded":[]}
-
-    # save distance between 2 param
-    distance = {"b_and_a":[], "b_and_d":[], "a_and_d":[]}
-    for i, b_b in enumerate(p_sum["b_b"]):
-        b_a = p_sum["b_a"][i]
-        b_d = p_sum["b_d"][i]
-        dist_b_and_a = 0
-        dist_b_and_d = 0
-        dist_a_and_d = 0
-        for j, b in enumerate(b_b): # loop with 1 bit
-            if b != b_a[j]:
-                dist_b_and_a += 1
-            if b != b_d[j]:
-                dist_b_and_d += 1
-            if b_a[j] != b_d[j]:
-                dist_a_and_d += 1
-        distance["b_and_a"].append(dist_b_and_a)
-        distance["b_and_d"].append(dist_b_and_d)
-        distance["a_and_d"].append(dist_a_and_d)
-
-    # plot parameter
-    plt.plot(p_sum["p_d"], label=f"decoded epoch {args.before}", alpha=1.0)
-    plt.plot(p_sum["p_b"], label=f"epoch {args.before}", alpha=0.5)
-    plt.plot(p_sum["p_a"], label=f"epoch {args.after}", alpha=0.5)
+    params_after = get_params_info(args, model_after)
+    params_decoded = get_params_info(args, model_decoded)
+    params_info = {"before":params_before, "after":params_after, "decoded":params_decoded}
+    
+    # plot parameters
+    plt.plot(params_info["decoded"]["p_m"], label=f"decoded epoch {args.before} to {args.after}", alpha=1.0)
+    plt.plot(params_info["before"]["p_m"], label=f"epoch {args.before}", alpha=0.5)
+    plt.plot(params_info["after"]["p_m"], label=f"epoch {args.after}", alpha=0.5)
     plt.legend()
-    plt.savefig(f"{save_dir}/parameter{args.after}.png")
+    plt.savefig(f"{save_dir}/parameters{args.after}.png")
     plt.clf()
 
-    with open(f"{save_dir}/parameter{args.after}.txt", "w") as result_file:
-        result_file.write(f"{args.before},{args.after},decoded\n")
-        for i, p_b in enumerate(p_sum["p_b"]):
-            p_a = p_sum["p_a"][i]
-            p_d = p_sum["p_d"][i]
-            result_file.write(f"{p_b},{p_a},{p_d}\n")
-
-    decode_fails_index = [i for i, p in enumerate(p_sum["p_d"]) if p >= 1]
-    with open(f"{save_result_dir}/decode_fails_param.txt", "w") as result_file:
-        result_file.write(f",{args.before},{args.after},decoded,"
-            f"distance {args.before}-{args.after},distance {args.before}-decoded,distance {args.after}-decoded\n")
-        for i in decode_fails_index:
-            p_b = p_sum["p_b"][i]
-            p_a = p_sum["p_a"][i]
-            p_d = p_sum["p_d"][i]
-            s_b = p_sum["s_b"][i]
-            s_a = p_sum["s_a"][i]
-            s_d = p_sum["s_d"][i]
-            dist_b_and_a = distance["b_and_a"][i]
-            dist_b_and_d = distance["b_and_d"][i]
-            dist_a_and_d = distance["a_and_d"][i]
-
-            result_file.write(f"parameter,{p_b},{p_a},{p_d},{p_b-p_a},{p_b-p_d},{p_a-p_d}\n"
-                    f"strings,{s_b},{s_a},{s_d},{dist_b_and_a},{dist_b_and_d},{dist_a_and_d}\n")
-
-    """
-    # save min hamming distnace of BEFORE
-    min_dist_before = 32
-    for i, b_b in enumerate(p_sum["b_b"]):
-        for j, b_b2 in enumerate(p_sum["b_b"]):
-            if i == j:
-                continue
-            dist_tmp = 0
-            for k, b in enumerate(b_b):
-                if b != b_b2[k]:
-                    dist_tmp += 1
-            if min_dist_before > dist_tmp:
-                min_dist_before = dist_tmp
-    """
-
+    # save distance between 2 parameters
+    dist_before_after = get_dist_of_params(params_info["before"], params_info["after"])
+    dist_before_decoded = get_dist_of_params(params_info["before"], params_info["decoded"])
+    dist_after_decoded = get_dist_of_params(params_info["after"], params_info["decoded"])
+    distance_info = {"before_after":dist_before_after, "before_decoded":dist_before_decoded, "after_decoded":dist_after_decoded}
+    
     # save acc of correcting
-    success = {}   # key:dist_b_and_a, value:{block:[success or fail], symbol:[match number of symbol]]
-    for i, p_b in enumerate(p_sum["p_b"]):
-        p_a = p_sum["p_a"][i]
-        p_d = p_sum["p_d"][i]
-        b_b = p_sum["b_b"][i]
-        b_a = p_sum["b_a"][i]
-        b_d = p_sum["b_d"][i]
-        dist_b_and_a = distance["b_and_a"][i]
+    block_success = []
+    for i, b_b in enumerate(params_info["before"]["b_m"]):
+        b_a = params_info["after"]["b_m"][i]
+        b_d = params_info["decoded"]["b_m"][i]
+        dist_b_and_a = distance_info["before_after"][i]
 
-        if dist_b_and_a not in success:
-            success.update({dist_b_and_a:{"block":[],"symbol":[]}})
-
-        if p_b == p_d:
-            success[dist_b_and_a]["block"].append(True)
+        if b_b == b_d:
+            block_success.append(True)
         else:
-            success[dist_b_and_a]["block"].append(False)
-        sym_temp = 0
-        for j, b in enumerate(b_b):
-            if b == b_d[j]:
-                sym_temp += 1
-        success[dist_b_and_a]["symbol"].append(sym_temp)
+            block_success.append(False)
+        
+    symbol_success = []
+    for b_d in distance_info["before_decoded"]:
+        symbol_success.append(args.msg_len - b_d)
+    
+    success = {"block":block_success, "symbol":symbol_success}
+    
+    # plot all
+    with open(f"{save_dir}/acc{args.after}.txt", "w", newline="") as f:
+        writer = csv.writer(f)
+        header = np.concatenate([list(params_info.keys()), list(distance_info.keys()), list(success.keys())])
+        writer.writerow(header)
+        for b, a, d, dist_b_a, dist_b_d, dist_a_d, block, symbol in zip(
+            params_info["before"]["p_m"], params_info["after"]["p_m"], params_info["decoded"]["p_m"],
+            distance_info["before_after"], distance_info["before_decoded"], distance_info["after_decoded"], 
+            success["block"], success["symbol"]):
+            writer.writerow([b, a, d, dist_b_a, dist_b_d, dist_a_d, block, symbol])
+    
+    dist_success = {}
+    for dist, block, symbol in zip(distance_info["before_after"], success["block"], success["symbol"]):
+        if dist not in dist_success:
+            dist_success[dist] = {"count": 0, "block": 0, "symbol": 0}
+        dist_success[dist]["count"] += 1
+        dist_success[dist]["block"] += block
+        dist_success[dist]["symbol"] += symbol
+    
+    for dist in sorted(dist_success):
+        logging.info(
+            f"[{dist}]\tBlock acc: {dist_success[dist]['block']}/{dist_success[dist]['count']}="
+            f"{dist_success[dist]['block']/dist_success[dist]['count']}\t"
+            f"Symbol acc: {dist_success[dist]['symbol']}/{dist_success[dist]['count']}*{args.msg_len}="
+            f"{dist_success[dist]['symbol']/(dist_success[dist]['count']*args.msg_len)}"
+        )
 
-    block_success_all = 0
-    with open(f"{save_result_dir}/acc.txt", "w") as result_file:
-        result_file.write(f"hamming distance,number,block success number,symbol success number\n")
-        for k in sorted(success.items()):
-            dist_b_and_a = k[0]
-            block_num = k[1]["block"]
-            symbol_success = k[1]["symbol"]
-            block_success = block_num.count(True)
-            block_success_all += block_success
-            result_file.write(f"{dist_b_and_a},{len(block_num)},{block_success},{sum(symbol_success)}\n")
-    print(f"block correcting acc: {block_success_all}/{len(p_sum['p_b'])}={block_success_all/len(p_sum['p_b'])}")
 
-
-def check_output(args, model_before, model_after, model_decoded, save_dir, device):
+def check_output(args, model_before, model_after, model_decoded, device, save_dir, logging):
     model_before.eval()
     model_after.eval()
     model_decoded.eval()
     _, test_loader = prepare_dataset(args)
 
-    save_data_dir = f"./data/{args.ecc}/{args.last_layer}/{args.date}"
-    os.makedirs(save_data_dir, exist_ok=True)
-    save_data_file = f"{save_data_dir}/b{args.before}_a{args.after}.npz"
+    save_data_file = f"./ecc/{args.date}/{args.before}/diff{args.after}.npz"
     if not os.path.isfile(save_data_file):
         indice, outputs = save_output_dist(model_before, model_after, test_loader, device)
         np.savez(save_data_file, indice=indice, outputs=outputs)
@@ -151,26 +101,28 @@ def check_output(args, model_before, model_after, model_decoded, save_dir, devic
     before_acc, before_loss = test(model_before, test_loader, device)
     after_acc, after_loss = test(model_after, test_loader, device)
     decoded_acc, decoded_loss = test(model_decoded, test_loader, device)
-    print(f"Before\tacc: {before_acc},\tloss: {before_loss}")
-    print(f"After\tacc: {after_acc},\tloss: {after_loss}")
-    print(f"Decoded\tacc: {decoded_acc},\tloss: {decoded_loss}")
+    logging.info(f"Before\tacc: {before_acc},\tloss: {before_loss}")
+    logging.info(f"After\tacc: {after_acc},\tloss: {after_loss}")
+    logging.info(f"Decoded\tacc: {decoded_acc},\tloss: {decoded_loss}")
 
-    with open(f"{save_result_dir}/output_dist.txt", "w") as result_file:
-        result_file.write(f"{len(dist_data['indice'])} differences -> decoded -> {len(fail)} + {len(deterioration)} differences\n")
-        result_file.write(f"\n\nkeep the differences between BEFORE and AFTER because failure of decoding\n")
-        for f in fail:
-            result_file.write(f"after, {f[1]}, -> decoded, {f[2]}, correct, {f[0]}\n")
-        result_file.write(f"\n\ndeteriorate the match between BEFORE and AFTER because failure of decoding\n")
-        for d in deterioration:
-            result_file.write(f"correct, {d[0]}, -> decoded, {d[1]}\n")
+    with open(f"{save_dir}/output{args.after}.txt", "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([len(dist_data["indice"]), "->", len(fail), len(deterioration)])
+        writer.writerow(["after", "decoded", "before"])
+        for fa in fail:
+            writer.writerow([fa[1], fa[2], fa[0]])
+        writer.writerow([])
+        for de in deterioration:
+            writer.writerow([de[0], de[1]])
 
 
 def save_output_dist(model_before, model_after, test_loader, device):
+    indice = 0
     dist_indice = []
     dist_outputs_after = []
 
     with torch.no_grad():
-        for i, (imgs, labels) in enumerate(test_loader):
+        for imgs, labels in test_loader:
             imgs, labels = imgs.to(device), labels.to(device)
             outputs_before = model_before(imgs)
             outputs_after = model_after(imgs)
@@ -178,20 +130,23 @@ def save_output_dist(model_before, model_after, test_loader, device):
             pred_before = np.argmax(outputs_before.to("cpu").detach().numpy(), axis=1)
             pred_after = np.argmax(outputs_after.to("cpu").detach().numpy(), axis=1)
 
-            for j, p_b in enumerate(pred_before):
-                p_a = pred_after[j]
+            for i, p_b in enumerate(pred_before):
+                p_a = pred_after[i]
                 if p_b != p_a:
-                    dist_indice.append(i*len(test_loader)+j)
-                    dist_outputs_after.append(outputs_after[j].to("cpu").detach().numpy())
+                    dist_indice.append(indice)
+                    dist_outputs_after.append(outputs_after[i].to("cpu").detach().numpy())
+                
+                indice += 1
 
     return np.array(dist_indice), np.array(dist_outputs_after)
 
 
 def check_output_dist(model_before, model_decoded, test_loader, dist_data, device):
+    indice = 0
     difference = []
 
     with torch.no_grad():
-        for i, (imgs, labels) in enumerate(test_loader):
+        for imgs, labels in test_loader:
             imgs, labels = imgs.to(device), labels.to(device)
             outputs_before = model_before(imgs)
             outputs_decoded = model_decoded(imgs)
@@ -199,10 +154,12 @@ def check_output_dist(model_before, model_decoded, test_loader, dist_data, devic
             pred_before = np.argmax(outputs_before.to("cpu").detach().numpy(), axis=1)
             pred_decoded = np.argmax(outputs_decoded.to("cpu").detach().numpy(), axis=1)
 
-            for j, p_b in enumerate(pred_before):
-                p_d = pred_decoded[j]
+            for i, p_b in enumerate(pred_before):
+                p_d = pred_decoded[i]
                 if p_b != p_d:
-                    difference.append((i*len(test_loader)+j, p_b, p_d))
+                    difference.append((indice, p_b, p_d))
+                
+                indice += 1
 
     fail = []
     deterioration = []
@@ -217,26 +174,32 @@ def check_output_dist(model_before, model_decoded, test_loader, dist_data, devic
     return fail, deterioration
 
 
-def main(args):
+def main():
     args = get_args()
     torch_fix_seed(args.seed)
+    
     device = torch.device(args.device)
     save_dir = f"./ecc/{args.date}/{args.before}/{args.msg_len}/{args.last_layer}/{args.ecc}"
+    os.makedirs(save_dir, exist_ok=True)
     
+    logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
+    logging_args(args, logging)
+
     model_before = load_model(args, f"./model/{args.date}/{args.before}", device)
     model_after = load_model(args, f"./model/{args.date}/{args.after}", device)
     model_decoded = load_model(args, f"{save_dir}/decoded{args.after}", device)
-    
+
     if args.mode == "acc":
-        calc_acc(args, model_before, model_after, model_decoded, save_dir)
+        calc_acc(args, model_before, model_after, model_decoded, save_dir, logging)
     elif args.mode == "output":
-        check_output(args, model_before, model_after, model_decoded, save_dir, device)
+        check_output(args, model_before, model_after, model_decoded, device, save_dir, logging)
     else:
         raise NotImplementedError
-
+    
+    
     exit()
 
 
 if __name__ == "__main__":
-    main(args)
+    main()
 

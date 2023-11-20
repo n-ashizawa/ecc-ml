@@ -324,10 +324,24 @@ def get_params_info(args, model):
                 continue
         
         for value in param.view(-1):
-            (p_m, s_m, b_m_all) = get_bin_from_param(value.item())
+            (p_m, s_m_all, b_m_all) = get_bin_from_param(value.item())
              # limit bits
             b_m = b_m_all[:args.msg_len]
+            s_m = s_m_all[:args.msg_len]
             params["p_m"].append(p_m)
             params["s_m"].append(s_m)
             params["b_m"].append(b_m)
     return params
+
+
+def get_dist_of_params(params1, params2):
+    distance = []
+    for i, binary1 in enumerate(params1["b_m"]):
+        binary2 = params2["b_m"][i]
+        tmp_dist = 0
+        for j, b1 in enumerate(binary1): # loop with 1 bit
+            b2 = binary2[j]
+            if b1 != b2:
+                tmp_dist += 1
+        distance.append(tmp_dist)
+    return distance

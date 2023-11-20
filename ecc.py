@@ -33,7 +33,7 @@ def encode_before(args, model_before, ECC, save_dir, logging):
         reds2_list = []
 
         for value in param.view(-1):
-            (p_b, s_b, b_b_all) = get_bin_from_param(value.item())
+            (_, _, b_b_all) = get_bin_from_param(value.item())
             # limit bits
             b_b = b_b_all[:args.msg_len]
             encoded_msg = ECC.encode(b_b)
@@ -85,7 +85,7 @@ def decode_after(args, model_after, ECC, save_dir, logging):
         
         decoded_params = []
         for j, value in enumerate(param.view(-1)):
-            (p_a, s_a, b_a_all) = get_bin_from_param(value.item())
+            (_, _, b_a_all) = get_bin_from_param(value.item())
             # bit limited
             # limit bits
             b_a = b_a_all[:args.msg_len]
@@ -111,9 +111,10 @@ def decode_after(args, model_after, ECC, save_dir, logging):
 
 
 def main():
-    device = torch.device("cpu")
     args = get_args()
     torch_fix_seed(args.seed)
+    
+    device = torch.device("cpu")
     save_dir = f"./ecc/{args.date}/{args.before}/{args.msg_len}/{args.last_layer}/{args.ecc}"
     os.makedirs(save_dir, exist_ok=True)
     
