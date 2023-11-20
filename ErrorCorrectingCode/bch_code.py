@@ -1,4 +1,3 @@
-from pyfinite import ffield
 import bchlib
 
 from utils import *
@@ -8,10 +7,14 @@ class BCHCode:
     def __init__(self, args):
         torch_fix_seed(args.seed)
         self.msg_len = args.msg_len*args.sum_params
-        # t = ((self.msg_len+7)//8)*4 => 16 bits (msg_len=32)
-        self.t = ((self.msg_len+7)//8)*4
-        self.poly = 487
-        self.bch = bchlib.BCH(self.t, prim_poly=self.poly)
+        # ecc_bits = t * m = msg_len(byte)*4 bytes
+        #self.t = 16   # when msg_len=32
+        #self.m = 8   # when msg_len=32
+        #self.t = 8   # when msg_len=8
+        #self.m = 4   # when msg_len=8
+        self.t = 47   # when msg_len=32, sum_params=5
+        self.m = 13   # when msg_len=32, sum_params=5
+        self.bch = bchlib.BCH(self.t, m=self.m)
 
 
     def encode(self, msg):
@@ -23,9 +26,10 @@ class BCHCode:
 
     def decode(self, encoded_msg):
         encoded_msg_bytes = get_bytes_from_bin(encoded_msg)   # 4bytes(32bits)
-        
         data = bytearray(encoded_msg_bytes[:-self.bch.ecc_bytes])
         ecc = bytearray(encoded_msg_bytes[-self.bch.ecc_bytes:])
+
+        self.bch.data_len = (self.msg_len+7) // 8   # msg_len=32のとき最大値が15bytes
         nerr = self.bch.decode(data, ecc)
         self.bch.correct(data, ecc)
 

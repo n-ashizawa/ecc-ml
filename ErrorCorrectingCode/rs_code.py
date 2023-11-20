@@ -9,7 +9,7 @@ class RSCode:
         self.msg_len = args.msg_len*args.sum_params
         # t = ((self.msg_len+7)//8)*4 => 16 bits (msg_len=32)
         self.t = ((self.msg_len+7)//8)*4
-        self.rs = RSCodec(self.t)
+        self.rs = RSCodec(self.t, nsize=self.msg_len)
 
 
     def encode(self, msg):
