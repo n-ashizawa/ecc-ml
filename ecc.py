@@ -29,26 +29,39 @@ def encode_before(args, model_before, ECC, save_dir, logging):
                 continue
         
         encoded_params = []
-        reds1_list = []
-        reds2_list = []
-
+        reds1 = []
+        reds2 = []
+        params = []
+        sum_params = 0
         for value in param.view(-1):
-            (_, _, b_b_all) = get_bin_from_param(value.item())
-            # limit bits
-            b_b = b_b_all[:args.msg_len]
+            params.append(value.item())
+            sum_params += 1
+            if args.sum_params > sum_params:
+                continue
+            whole_b_bs = []
+            b_b = []
+            for p in params:
+                (_, _, whole_b_b) = get_bin_from_param(p)
+                # limit bits
+                whole_b_bs.append(whole_b_b)   # storage all bits
+                b_b.extend(whole_b_b[:args.msg_len])
             encoded_msg = ECC.encode(b_b)
-            b_e = encoded_msg[:args.msg_len]
-            reds1 = encoded_msg[args.msg_len:args.msg_len*3]
-            reds2 = encoded_msg[args.msg_len*3:]
-            reds1_list.append(reds1)
-            reds2_list.append(reds2)
-            # extend bits
-            b_e_all = np.concatenate([b_e, b_b_all[args.msg_len:]])
-            p_e, _, _ = get_param_from_bin(b_e_all)
-            encoded_params.append(p_e)
-
-        all_reds1.append(reds1_list)
-        all_reds2.append(reds2_list)
+            msglen = args.msg_len*args.sum_params
+            b_es = encoded_msg[:msglen]
+            reds1.append(encoded_msg[msglen:msglen*3])
+            reds2.append(encoded_msg[msglen*3:])
+            b_e = []
+            for i in range(len(whole_b_bs)):
+                b_e = b_es[i*args.msg_len:(i+1)*args.msg_len]
+                # extend bits
+                whole_b_e = np.concatenate([b_e, whole_b_bs[i][args.msg_len:]])
+                p_e, _, _ = get_param_from_bin(whole_b_e)
+                encoded_params.append(p_e)
+            params = []   # initialize
+            sum_params = 0   # initialize
+            
+        all_reds1.append(reds1)
+        all_reds2.append(reds2)
         reshape_encoded_params = torch.Tensor(encoded_params).view(param.data.size())
         # Modify the state dict
         state_dict[name] = reshape_encoded_params
@@ -84,19 +97,36 @@ def decode_after(args, model_after, ECC, save_dir, logging):
                 continue
         
         decoded_params = []
-        for j, value in enumerate(param.view(-1)):
-            (_, _, b_a_all) = get_bin_from_param(value.item())
-            # bit limited
-            # limit bits
-            b_a = b_a_all[:args.msg_len]
+        params = []
+        sum_params = 0
+        j = 0
+        for value in param.view(-1):
+            params.append(value.item())
+            sum_params += 1
+            if args.sum_params > sum_params:
+                continue
+            whole_b_as = []
+            b_a = []
+            for p in params:
+                (_, _, whole_b_a) = get_bin_from_param(p)
+                # limit bits
+                whole_b_as.append(whole_b_a)   # storage all bits
+                b_a.extend(whole_b_a[:args.msg_len])
+            
             reds1 = all_reds1[i][j]
             reds2 = all_reds2[i][j]
             encoded_msg = np.concatenate([b_a, reds1, reds2])
-            b_d = ECC.decode(encoded_msg)
-            # extend bits
-            b_d_all = np.concatenate([b_d, b_a_all[args.msg_len:]])
-            p_d, _, _ = get_param_from_bin(b_d_all)
-            decoded_params.append(p_d)
+            b_ds = ECC.decode(encoded_msg)
+            b_d = []
+            for k in range(len(whole_b_as)):
+                b_d = b_ds[k*args.msg_len:(k+1)*args.msg_len]
+                # extend bits
+                whole_b_d = np.concatenate([b_d, whole_b_as[k][args.msg_len:]])
+                p_d, _, _ = get_param_from_bin(whole_b_d)
+                decoded_params.append(p_d)
+            j += 1
+            params = []   # initialize
+            sum_params = 0   # initialize
 
         reshape_decoded_params = torch.Tensor(decoded_params).view(param.data.size())
         # Modify the state dict
@@ -115,7 +145,7 @@ def main():
     torch_fix_seed(args.seed)
     
     device = torch.device("cpu")
-    save_dir = f"./ecc/{args.date}/{args.before}/{args.msg_len}/{args.last_layer}/{args.ecc}"
+    save_dir = f"./ecc/{args.date}/{args.before}/{args.msg_len}/{args.last_layer}/{args.sum_params}/{args.ecc}"
     os.makedirs(save_dir, exist_ok=True)
     
     if args.ecc == "turbo":
