@@ -21,8 +21,9 @@ def encode_before(args, model_before, ECC, save_dir, logging):
     all_reds2 = []
 
     for name, param in model_before.named_parameters():
-        if "weight" not in name:
-            continue
+        if args.weight_only:
+            if "weight" not in name:
+                continue
         if args.last_layer:
             last_layer = [n for n, _ in model_before.named_parameters() if "weight" in n][-1]
             if name != last_layer:
@@ -89,8 +90,9 @@ def decode_after(args, model_after, ECC, save_dir, logging):
 
     i = 0
     for name, param in model_after.named_parameters():
-        if "weight" not in name:
-            continue
+        if args.weight_only:
+            if "weight" not in name:
+                continue
         if args.last_layer:
             last_layer = [n for n, _ in model_after.named_parameters() if "weight" in n][-1]
             if name != last_layer:
@@ -145,7 +147,7 @@ def main():
     torch_fix_seed(args.seed)
     
     device = torch.device("cpu")
-    save_dir = f"./ecc/{args.date}/{args.before}/{args.msg_len}/{args.last_layer}/{args.sum_params}/{args.ecc}"
+    save_dir = f"./ecc/{args.date}/{args.before}/{args.msg_len}/{args.last_layer}/{args.weight_only}/{args.sum_params}/{args.ecc}"
     os.makedirs(save_dir, exist_ok=True)
     
     if args.ecc == "turbo":

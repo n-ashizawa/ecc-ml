@@ -316,8 +316,9 @@ def get_intlist_from_strlist(strlist):
 def get_params_info(args, model):
     params = {"p_m":[], "s_m":[], "b_m":[]}
     for name, param in model.named_parameters():
-        if "weight" not in name:
-            continue
+        if args.weight_only:
+            if "weight" not in name:
+                continue
         if args.last_layer:
             last_layer = [n for n, _ in model.named_parameters() if "weight" in n][-1]
             if name != last_layer:

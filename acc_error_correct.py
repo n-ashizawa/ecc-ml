@@ -179,7 +179,7 @@ def main():
     torch_fix_seed(args.seed)
     
     device = torch.device(args.device)
-    save_dir = f"./ecc/{args.date}/{args.before}/{args.msg_len}/{args.last_layer}/{args.sum_params}/{args.ecc}"
+    save_dir = f"./ecc/{args.date}/{args.before}/{args.msg_len}/{args.last_layer}/{args.weight_only}/{args.sum_params}/{args.ecc}"
     os.makedirs(save_dir, exist_ok=True)
     
     logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
