@@ -21,12 +21,12 @@ def encode_before(args, model_before, ECC, save_dir, logging):
     all_reds2 = []
 
     for name, param in model_before.named_parameters():
+        if args.last_layer:
+            last_layer = [n for n, _ in model_before.named_parameters()][-1].split(".")[0]
+            if last_layer not in name:
+                continue
         if args.weight_only:
             if "weight" not in name:
-                continue
-        if args.last_layer:
-            last_layer = [n for n, _ in model_before.named_parameters() if "weight" in n][-1]
-            if name != last_layer:
                 continue
         
         encoded_params = []
@@ -78,9 +78,10 @@ def encode_before(args, model_before, ECC, save_dir, logging):
  
 
 def decode_after(args, model_after, ECC, save_dir, logging):
-    model_decoded = copy.deepcopy(model_after)
     # Get the state dict
+    model_decoded = copy.deepcopy(model_after)
     state_dict = model_decoded.state_dict()
+    # Load the encoded redidundants
     all_reds1_str = read_varlen_csv(f"{save_dir}/reds1")
     all_reds1 = get_intlist_from_strlist(all_reds1_str)
     logging.info("all no.1 redundants are loaded")
@@ -90,12 +91,12 @@ def decode_after(args, model_after, ECC, save_dir, logging):
 
     i = 0
     for name, param in model_after.named_parameters():
+        if args.last_layer:
+            last_layer = [n for n, _ in model_after.named_parameters()][-1].split(".")[0]
+            if last_layer not in name:
+                continue
         if args.weight_only:
             if "weight" not in name:
-                continue
-        if args.last_layer:
-            last_layer = [n for n, _ in model_after.named_parameters() if "weight" in n][-1]
-            if name != last_layer:
                 continue
         
         decoded_params = []
