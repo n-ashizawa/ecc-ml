@@ -16,19 +16,21 @@ from logger import get_logger, logging_args
 def encode_before(args, model_before, ECC, save_dir, logging):
     model_encoded = copy.deepcopy(model_before)
     # Get the state dict
-    state_dict = model_encoded.state_dict()
+    state_dict_before = model_before.state_dict()
+    state_dict_encoded = model_encoded.state_dict()
     all_reds1 = []
     all_reds2 = []
 
-    for name, param in model_before.named_parameters():
+    for name in state_dict_before:
         if args.last_layer:
-            last_layer = [n for n, _ in model_before.named_parameters()][-1].split(".")[0]
+            last_layer = [n for n in state_dict_before][-1].split(".")[0]
             if last_layer not in name:
                 continue
         if args.weight_only:
             if "weight" not in name:
                 continue
         
+        param = state_dict_before[name]
         encoded_params = []
         reds1 = []
         reds2 = []
@@ -65,14 +67,14 @@ def encode_before(args, model_before, ECC, save_dir, logging):
         all_reds2.append(reds2)
         reshape_encoded_params = torch.Tensor(encoded_params).view(param.data.size())
         # Modify the state dict
-        state_dict[name] = reshape_encoded_params
+        state_dict_encoded[name] = reshape_encoded_params
         logging.info(f"{name} is encoded")
 
     write_varlen_csv(all_reds1, f"{save_dir}/reds1")
     write_varlen_csv(all_reds2, f"{save_dir}/reds2")
 
     # Load the modified state dict
-    model_encoded.load_state_dict(state_dict)
+    model_encoded.load_state_dict(state_dict_encoded)
     save_model(model_encoded, f"{save_dir}/encoded")
     del model_encoded
  
@@ -80,7 +82,8 @@ def encode_before(args, model_before, ECC, save_dir, logging):
 def decode_after(args, model_after, ECC, save_dir, logging):
     # Get the state dict
     model_decoded = copy.deepcopy(model_after)
-    state_dict = model_decoded.state_dict()
+    state_dict_after = model_after.state_dict()
+    state_dict_decoded = model_decoded.state_dict()
     # Load the encoded redidundants
     all_reds1_str = read_varlen_csv(f"{save_dir}/reds1")
     all_reds1 = get_intlist_from_strlist(all_reds1_str)
@@ -90,15 +93,16 @@ def decode_after(args, model_after, ECC, save_dir, logging):
     logging.info("all no.2 redundants are loaded")
 
     i = 0
-    for name, param in model_after.named_parameters():
+    for name in state_dict_after:
         if args.last_layer:
-            last_layer = [n for n, _ in model_after.named_parameters()][-1].split(".")[0]
+            last_layer = [n for n in state_dict_after][-1].split(".")[0]
             if last_layer not in name:
                 continue
         if args.weight_only:
             if "weight" not in name:
                 continue
         
+        param = state_dict_after[name]
         decoded_params = []
         params = []
         sum_params = 0
@@ -133,12 +137,12 @@ def decode_after(args, model_after, ECC, save_dir, logging):
 
         reshape_decoded_params = torch.Tensor(decoded_params).view(param.data.size())
         # Modify the state dict
-        state_dict[name] = reshape_decoded_params
+        state_dict_decoded[name] = reshape_decoded_params
         logging.info(f"{name} is decoded")
         i += 1
 
     # Load the modified state dict
-    model_decoded.load_state_dict(state_dict)
+    model_decoded.load_state_dict(state_dict_decoded)
     save_model(model_decoded, f"{save_dir}/decoded{args.after}")
     del model_decoded
 
