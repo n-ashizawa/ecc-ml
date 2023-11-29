@@ -54,7 +54,8 @@ def load_model(args, file_name, device):
 
 def make_optim(args, model, pretrained=False):
     if pretrained:
-        optimizer = optim.SGD(model.fc.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
+        last_params = [p for p in model.parameters()][-1]
+        optimizer = optim.SGD(last_params, lr=args.lr, momentum=0.9, weight_decay=5e-4)
     else:
         optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
     return optimizer
@@ -71,23 +72,8 @@ def plot_linear(data_list, fig_name):
     plt.savefig(f"{fig_name}.png")
     plt.clf()
 
-def label_flipping(args, labels):
-    if args.dataset == "cifar10":
-        CLASS_NUM = 10
-    elif args.dataset == "cifar100":
-        CLASS_NUM = 100
-    else:
-        print(f"ERROR: {args.dataset} is not allowed")
 
-    num_elements_to_change = int(len(labels)*args.label_flipping)
-    random_index = random.sample(range(len(labels)), num_elements_to_change)
-    for i in random_index:
-        poison_label = (labels[i]+random.randint(0,9))%CLASS_NUM
-        labels[i] = poison_label
-    return labels
-
-
-def train(args, model, train_loader, optimizer, device):
+def train(model, train_loader, optimizer, device):
     model.train()
     criterion = nn.CrossEntropyLoss()
     losses = []
@@ -96,8 +82,6 @@ def train(args, model, train_loader, optimizer, device):
 
     for _batch_idx, (imgs, labels) in enumerate(train_loader):
         imgs, labels = imgs.to(device), labels.to(device)
-        if args.label_flipping > 0:
-            labels = label_flipping(args, labels)
         optimizer.zero_grad()
         outputs = model(imgs)
         loss = criterion(outputs, labels)
@@ -136,82 +120,97 @@ def test(model, test_loader, device):
     return accuracy_score(label_list, pred_list), np.mean(losses)
 
 
-def prepare_dataset(args):
+def load_dataset(args):
     if args.dataset == "cifar10":
-        CIFAR10_MEAN = (0.4914, 0.4822, 0.4465)
-        CIFAR10_STD = (0.2023, 0.1994, 0.2010)
-
-        train_trans = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD),
-        ])
-
-        test_trans = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD),
-        ])
-
-        if args.over_fitting:
-            train_set = datasets.CIFAR10(
-                    root="./data",
-                    train=True,
-                    download=True,
-                    transform=test_trans,
-            )
-        else:
-            train_set = datasets.CIFAR10(
-                    root="./data",
-                    train=True,
-                    download=True,
-                    transform=train_trans,
-            )
-
-        test_set = datasets.CIFAR10(
-                root="./data",
-                train=False,
-                download=True,
-                transform=test_trans,
-        )
-
+        mean = (0.4914, 0.4822, 0.4465)
+        std = (0.2023, 0.1994, 0.2010)
     elif args.dataset == "cifar100":   # https://github.com/weiaicunzai/pytorch-cifar100
-        CIFAR100_MEAN = (0.5070, 0.4865, 0.4409)
-        CIFAR100_STD = (0.2673, 0.2564, 0.2761)
-
+        mean = (0.5070, 0.4865, 0.4409)
+        std = (0.2673, 0.2564, 0.2761)
+    else:
+        raise NotImplementedError
+    
+    if args.over_fitting:
+        train_trans = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ])
+    else:
         train_trans = transforms.Compose([
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize(CIFAR100_MEAN, CIFAR100_STD),
+            transforms.Normalize(mean, std),
         ])
 
-        test_trans = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(CIFAR100_MEAN, CIFAR100_STD),
-        ])
+    test_trans = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean, std),
+    ])
 
-        if args.over_fitting:
-            train_set = datasets.CIFAR100(
-                    root="./data",
-                    train=True,
-                    download=True,
-                    transform=test_trans,
-            )
-        else:
-            train_set = datasets.CIFAR100(
-                    root="./data",
-                    train=True,
-                    download=True,
-                    transform=train_trans,
-            )
-
-        test_set = datasets.CIFAR100(
-                root="./data",
+    if args.dataset == 'cifar10':
+        train_set = datasets.CIFAR10(
+            root="./train/data",
+            train=True,
+            download=True,
+            transform=train_trans,
+        )
+        test_set = datasets.CIFAR10(
+                root="./train/data",
                 train=False,
                 download=True,
                 transform=test_trans,
         )
+    elif args.dataset == 'cifar100':
+        train_set = datasets.CIFAR100(
+            root="./train/data",
+            train=True,
+            download=True,
+            transform=train_trans
+        )
+        test_set = datasets.CIFAR100(
+                root="./train/data",
+                train=False,
+                download=True,
+                transform=test_trans,
+        )
+    else:
+        raise NotImplementedError
+    
+    return train_set, test_set
+
+
+def flip_labels(args, train_set, save_dir):
+    if args.dataset == "cifar10":
+        CLASS_NUM = 10
+    elif args.dataset == "cifar100":
+        CLASS_NUM = 100
+    else:
+        raise NotImplementedError
+    
+    # Calculate the number of labels to flip
+    num_to_flip = int(len(train_set) * args.label_flipping)
+    # Randomly select indices of data to flip labels
+    indices_to_flip = np.random.choice(len(train_set), size=num_to_flip, replace=False)
+    
+    flipping_records = []
+    for idx in indices_to_flip:
+        # Get the current label
+        _, current_label = train_set[idx]
+        # Generate a new label that is different from the current one
+        new_label = np.random.choice([label for label in range(CLASS_NUM) if label != current_label])
+        # Update the label in the dataset
+        train_set.targets[idx] = new_label
+        flipping_records.append((str(idx), str(current_label), str(new_label)))
+    write_varlen_csv(flipping_records, f"{save_dir}/flipping_records")
+    
+    return train_set
+
+
+def prepare_dataset(args, save_dir):
+    
+    train_set, test_set = load_dataset(args)
+    train_set = flip_labels(args, train_set, save_dir)
 
     train_loader = DataLoader(
             train_set,

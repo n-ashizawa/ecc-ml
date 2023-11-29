@@ -150,9 +150,19 @@ def decode_after(args, model_after, ECC, save_dir, logging):
 def main():
     args = get_args()
     torch_fix_seed(args.seed)
-    
     device = torch.device("cpu")
-    save_dir = f"./ecc/{args.date}/{args.before}/{args.msg_len}/{args.last_layer}/{args.weight_only}/{args.sum_params}/{args.ecc}"
+    
+    if args.over_fitting:
+        mode = "over-fitting"
+    elif args.label_flipping > 0:
+        mode = "label-flipping"
+    elif args.label_flipping == 0:
+        mode = "normal"
+    else:
+        raise NotImplementedError
+    
+    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{args.msg_len}/{args.last_layer}/{args.weight_only}/{args.sum_params}/{args.ecc}"
     os.makedirs(save_dir, exist_ok=True)
     
     if args.ecc == "turbo":
@@ -167,14 +177,14 @@ def main():
     if args.mode == "encode":
         logging = get_logger(f"{save_dir}/{args.mode}.log")
         logging_args(args, logging)
-        model = load_model(args, f"./model/{args.date}/{args.before}", device)
+        model = load_model(args, f"{load_dir}/{args.before}", device)
         start_time = time.time()
         encode_before(args, model, ECC, save_dir, logging)
         end_time = time.time()
     elif args.mode == "decode":
         logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
         logging_args(args, logging)
-        model = load_model(args, f"./model/{args.date}/{args.after}", device)
+        model = load_model(args, f"{load_dir}/{args.after}", device)
         start_time = time.time()
         decode_after(args, model, ECC, save_dir, logging)
         end_time = time.time()

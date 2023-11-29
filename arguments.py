@@ -4,7 +4,6 @@ def get_args():
     parser = argparse.ArgumentParser()
     # general
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--date", type=str, default="20231006-1129")
     parser.add_argument("--before", type=str, default="1")
     parser.add_argument("--after", type=str, default="2")
     parser.add_argument("--arch", type=str, default="resnet18", 
@@ -12,7 +11,7 @@ def get_args():
     parser.add_argument("--dataset", type=str, default="cifar10", choices=["cifar10", "cifar100"])
     parser.add_argument("--device", type=str, default="cuda:0", choices=["cuda:0", "cuda:1", "cpu"])
     # train
-    parser.add_argument("--lr", type=float, default=0.1)
+    parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--epoch", type=int, default=100)
     parser.add_argument("--pretrained", type=int, default=0)
     parser.add_argument("--label-flipping", type=float, default=0)
