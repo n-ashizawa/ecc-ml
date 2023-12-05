@@ -44,7 +44,7 @@ def encode_before(args, model_before, ECC, save_dir, logging):
             whole_b_bs = []
             b_b = []
             for p in params:
-                (_, _, whole_b_b) = get_bin_from_param(p)
+                (_, _, whole_b_b), integer_len = get_bin_from_param(p, length=args.msg_len, fixed=args.fixed)
                 # limit bits
                 whole_b_bs.append(whole_b_b)   # storage all bits
                 b_b.extend(whole_b_b[:args.msg_len])
@@ -58,7 +58,7 @@ def encode_before(args, model_before, ECC, save_dir, logging):
                 b_e = b_es[i*args.msg_len:(i+1)*args.msg_len]
                 # extend bits
                 whole_b_e = np.concatenate([b_e, whole_b_bs[i][args.msg_len:]])
-                p_e, _, _ = get_param_from_bin(whole_b_e)
+                p_e, _, _ = get_param_from_bin(whole_b_e, integer_len=integer_len, fixed=args.fixed)
                 encoded_params.append(p_e)
             params = []   # initialize
             sum_params = 0   # initialize
@@ -115,11 +115,10 @@ def decode_after(args, model_after, ECC, save_dir, logging):
             whole_b_as = []
             b_a = []
             for p in params:
-                (_, _, whole_b_a) = get_bin_from_param(p)
+                (_, _, whole_b_a), integer_len = get_bin_from_param(p, length=args.msg_len, fixed=args.fixed)
                 # limit bits
                 whole_b_as.append(whole_b_a)   # storage all bits
                 b_a.extend(whole_b_a[:args.msg_len])
-            
             reds1 = all_reds1[i][j]
             reds2 = all_reds2[i][j]
             encoded_msg = np.concatenate([b_a, reds1, reds2])
@@ -129,7 +128,7 @@ def decode_after(args, model_after, ECC, save_dir, logging):
                 b_d = b_ds[k*args.msg_len:(k+1)*args.msg_len]
                 # extend bits
                 whole_b_d = np.concatenate([b_d, whole_b_as[k][args.msg_len:]])
-                p_d, _, _ = get_param_from_bin(whole_b_d)
+                p_d, _, _ = get_param_from_bin(whole_b_d, integer_len=integer_len, fixed=args.fixed)
                 decoded_params.append(p_d)
             j += 1
             params = []   # initialize
@@ -160,9 +159,8 @@ def main():
         mode = "normal"
     else:
         raise NotImplementedError
-    
     load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{args.msg_len}/{args.last_layer}/{args.weight_only}/{args.sum_params}/{args.ecc}"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}"
     os.makedirs(save_dir, exist_ok=True)
     
     if args.ecc == "turbo":

@@ -19,6 +19,7 @@ def get_args():
     # ecc
     parser.add_argument("--ecc", type=str, default="turbo", choices=["turbo", "rs", "bch"])
     parser.add_argument("--mode", type=str, default="encode", choices=["encode", "decode", "acc", "output"])
+    parser.add_argument("--fixed", action="store_true", default=False)
     parser.add_argument("--last-layer", action="store_true", default=False)
     parser.add_argument("--weight-only", action="store_true", default=False)
     parser.add_argument("--sum-params", type=int, default=1)

@@ -37,11 +37,17 @@ def main():
     if args.pretrained == 0:
         model = make_model(args, device)
     elif args.pretrained > 0:
+        for epoch in range(1, args.pretrained+1):
+            model = load_model(args, f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/normal/0/model/{epoch}", device)
+            # test acc
+            acc, loss = test(model, test_loader, device)
+            test_losses.append(loss)
+            logging.info(f"INITIAL VAL ACC: {acc:.6f}\t"
+                f"VAL LOSS: {loss:.6f}")
+            # save model
+            save_model(model, f"{save_model_dir}/{epoch}")
+            del model
         model = load_model(args, f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/normal/0/model/{args.pretrained}", device)
-        acc, loss = test(model, test_loader, device)
-        test_losses.append(loss)
-        logging.info(f"INITIAL VAL ACC: {acc:.6f}\t"
-            f"VAL LOSS: {loss:.6f}")
     else:
         raise NotImplementedError
 
@@ -61,7 +67,7 @@ def main():
         logging.info(f"VAL ACC: {acc:.6f}\t"
             f"VAL LOSS: {loss:.6f}")
 
-        # モデルの保存
+        # save model
         save_model(model, f"{save_model_dir}/{epoch}")
 
     del model

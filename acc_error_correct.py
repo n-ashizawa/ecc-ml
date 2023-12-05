@@ -25,9 +25,9 @@ def calc_acc(args, model_before, model_after, model_decoded, save_dir, logging):
     params_info = {"before":params_before, "after":params_after, "decoded":params_decoded}
     
     # plot parameters
-    plt.plot(params_info["decoded"]["p_m"], label=f"decoded epoch {args.before} to {args.after}", alpha=1.0)
-    plt.plot(params_info["before"]["p_m"], label=f"epoch {args.before}", alpha=0.5)
-    plt.plot(params_info["after"]["p_m"], label=f"epoch {args.after}", alpha=0.5)
+    plt.plot(params_info["before"]["p_m"], label=f"epoch {args.before}", alpha=0.3)
+    plt.plot(params_info["after"]["p_m"], label=f"epoch {args.after}", alpha=0.3)
+    plt.plot(params_info["decoded"]["p_m"], label=f"decoded epoch {args.before} to {args.after}", alpha=0.3)
     plt.legend()
     plt.savefig(f"{save_dir}/parameters{args.after}.png")
     plt.clf()
@@ -90,7 +90,7 @@ def check_output(args, model_before, model_after, model_decoded, device, save_di
     model_decoded.eval()
     _, test_loader = prepare_dataset(args)
 
-    save_data_file = f"./ecc/{args.date}/{args.before}/diff{args.after}.npz"
+    save_data_file = "/".join(save_dir.split("/")[:4]) + "/diff{args.after}.npz"
     if not os.path.isfile(save_data_file):
         indice, outputs = save_output_dist(model_before, model_after, test_loader, device)
         np.savez(save_data_file, indice=indice, outputs=outputs)
@@ -177,16 +177,25 @@ def check_output_dist(model_before, model_decoded, test_loader, dist_data, devic
 def main():
     args = get_args()
     torch_fix_seed(args.seed)
-    
     device = torch.device(args.device)
-    save_dir = f"./ecc/{args.date}/{args.before}/{args.msg_len}/{args.last_layer}/{args.weight_only}/{args.sum_params}/{args.ecc}"
+
+    if args.over_fitting:
+        mode = "over-fitting"
+    elif args.label_flipping > 0:
+        mode = "label-flipping"
+    elif args.label_flipping == 0:
+        mode = "normal"
+    else:
+        raise NotImplementedError
+    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}"
     os.makedirs(save_dir, exist_ok=True)
     
     logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
     logging_args(args, logging)
 
-    model_before = load_model(args, f"./model/{args.date}/{args.before}", device)
-    model_after = load_model(args, f"./model/{args.date}/{args.after}", device)
+    model_before = load_model(args, f"{load_dir}/{args.before}", device)
+    model_after = load_model(args, f"{load_dir}/{args.after}", device)
     model_decoded = load_model(args, f"{save_dir}/decoded{args.after}", device)
 
     if args.mode == "acc":

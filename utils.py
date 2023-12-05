@@ -1,5 +1,8 @@
 import random
 import struct
+from decimal import Decimal
+import math
+import os
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -120,7 +123,7 @@ def test(model, test_loader, device):
     return accuracy_score(label_list, pred_list), np.mean(losses)
 
 
-def load_dataset(args):
+def get_trans(args):
     if args.dataset == "cifar10":
         mean = (0.4914, 0.4822, 0.4465)
         std = (0.2023, 0.1994, 0.2010)
@@ -129,7 +132,7 @@ def load_dataset(args):
         std = (0.2673, 0.2564, 0.2761)
     else:
         raise NotImplementedError
-    
+
     if args.over_fitting:
         train_trans = transforms.Compose([
             transforms.ToTensor(),
@@ -147,40 +150,11 @@ def load_dataset(args):
         transforms.ToTensor(),
         transforms.Normalize(mean, std),
     ])
-
-    if args.dataset == 'cifar10':
-        train_set = datasets.CIFAR10(
-            root="./train/data",
-            train=True,
-            download=True,
-            transform=train_trans,
-        )
-        test_set = datasets.CIFAR10(
-                root="./train/data",
-                train=False,
-                download=True,
-                transform=test_trans,
-        )
-    elif args.dataset == 'cifar100':
-        train_set = datasets.CIFAR100(
-            root="./train/data",
-            train=True,
-            download=True,
-            transform=train_trans
-        )
-        test_set = datasets.CIFAR100(
-                root="./train/data",
-                train=False,
-                download=True,
-                transform=test_trans,
-        )
-    else:
-        raise NotImplementedError
     
-    return train_set, test_set
+    return train_trans, test_trans
 
 
-def flip_labels(args, train_set, save_dir):
+def label_flipping(args, train_set, save_dir=""):
     if args.dataset == "cifar10":
         CLASS_NUM = 10
     elif args.dataset == "cifar100":
@@ -202,15 +176,39 @@ def flip_labels(args, train_set, save_dir):
         # Update the label in the dataset
         train_set.targets[idx] = new_label
         flipping_records.append((str(idx), str(current_label), str(new_label)))
-    write_varlen_csv(flipping_records, f"{save_dir}/flipping_records")
+    
+    save_data_file = f"{save_dir}/flipping_records"
+    if not os.path.isfile(f"{save_data_file}.txt"):
+        write_varlen_csv(flipping_records, save_data_file)
     
     return train_set
 
 
-def prepare_dataset(args, save_dir):
+def prepare_dataset(args, save_dir=""):
+    if args.dataset == "cifar10":
+        load_dataset = datasets.CIFAR10
+    elif args.dataset == "cifar100":   # https://github.com/weiaicunzai/pytorch-cifar100
+        load_dataset = datasets.CIFAR100
+    else:
+        raise NotImplementedError
     
-    train_set, test_set = load_dataset(args)
-    train_set = flip_labels(args, train_set, save_dir)
+    train_trans, test_trans = get_trans(args)
+    
+    train_set = load_dataset(
+        root="./train/data",
+        train=True,
+        download=True,
+        transform=train_trans,
+    )
+    test_set = load_dataset(
+            root="./train/data",
+            train=False,
+            download=True,
+            transform=test_trans,
+    )
+
+    if save_dir != "":
+        train_set = label_flipping(args, train_set, save_dir=save_dir)
 
     train_loader = DataLoader(
             train_set,
@@ -229,35 +227,55 @@ def prepare_dataset(args, save_dir):
     return train_loader, test_loader
 
 
-def get_bin_from_param(weight):
-    PARAM_LEN = 32
-    w_strings = list(format(struct.unpack(">L", struct.pack(">f", weight))[0], "b"))
-
-    # 桁数の確認
-    if len(w_strings) < PARAM_LEN:
-        w_strings[0:0] = ["0"]*(PARAM_LEN-len(w_strings))
-
+def get_bin_from_param(weight, length=32, fixed=False):
+    if fixed:
+        minus_sign = "0"
+        if weight < 0:
+            minus_sign = "1"
+            weight = abs(weight)
+        fractional, integer = math.modf(weight)
+        i_strings = bin(int(integer))[2:]
+        integer_len = len(i_strings)
+        if integer_len > length-1:
+            i_strings = i_strings[:length-1]
+        f_strings = to_fixed_bin_from_frac(fractional, length-1-integer_len)
+        w_strings = minus_sign + i_strings + f_strings
+    else:
+        PARAM_LEN = 32
+        integer_len = 0
+        w_strings = list(format(struct.unpack(">L", struct.pack(">f", weight))[0], "b"))
+        # +, -で桁数を揃える
+        if len(w_strings) < PARAM_LEN:
+            w_strings[0:0] = ["0"]*(PARAM_LEN-len(w_strings))
+            
     w_binary = [int(s, 2) for s in w_strings]
-
+    
     w_strings = ""
     for b in w_binary:
         if b == 1:
             w_strings += "1"
         else:
             w_strings += "0"
-    weight = struct.unpack(">f", struct.pack(">L", int(w_strings, 2)))[0]
+    
+    return (weight, w_strings, w_binary), integer_len
 
-    return (weight, w_strings, w_binary)
 
-
-def get_param_from_bin(w_binary):
+def get_param_from_bin(w_binary, integer_len=2, fixed=False):
     w_strings = ""
     for b in w_binary:
         if b == 1:
             w_strings += "1"
         else:
             w_strings += "0"
-    weight = struct.unpack(">f", struct.pack(">L", int(w_strings, 2)))[0]
+    if fixed:
+        minus_sign = w_strings[0]
+        i_strings = w_strings[1:1+integer_len]
+        f_strings = w_strings[1+integer_len:]
+        i_weight = int(i_strings, 2)
+        f_weight = to_frac_from_fixed_bin(f_strings)
+        weight = float(i_weight) + f_weight
+    else:
+        weight = struct.unpack(">f", struct.pack(">L", int(w_strings, 2)))[0]
 
     return (weight, w_strings, w_binary)
 
@@ -265,16 +283,18 @@ def get_param_from_bin(w_binary):
 def get_bytes_from_bin(binary_list):
     binary_str = ''.join(map(str, binary_list))
     binary_int = int(binary_str, 2)
-    binary_bytes = binary_int.to_bytes((binary_int.bit_length() + 7) // 8, 'big')
+    binary_bytes = binary_int.to_bytes((len(binary_str) + 7) // 8, 'big')
     return binary_bytes
 
 
 def get_bin_from_bytes(binary_bytes, msg_length=32, reds_len=64):
     binary_int = int.from_bytes(binary_bytes, "big")
     binary_str = bin(binary_int)[2:]
+    if binary_str == '0':   # all zero
+        binary_str = '0'*(msg_length+reds_len)
 
     if len(binary_str[:-reds_len]) < msg_length:
-        binary_str = "0"*(msg_length-len(binary_str[:-reds_len])) + binary_str
+        binary_str = '0'*(msg_length-len(binary_str[:-reds_len])) + binary_str
     
     binary_list = [int(s, 2) for s in binary_str]
 
@@ -313,18 +333,20 @@ def get_intlist_from_strlist(strlist):
 
 
 def get_params_info(args, model):
+    state_dict = model.state_dict()
     params = {"p_m":[], "s_m":[], "b_m":[]}
-    for name, param in model.named_parameters():
+    for name in state_dict:
+        if args.last_layer:
+            last_layer = [n for n in state_dict][-1].split(".")[0]
+            if last_layer not in name:
+                continue
         if args.weight_only:
             if "weight" not in name:
                 continue
-        if args.last_layer:
-            last_layer = [n for n, _ in model.named_parameters() if "weight" in n][-1]
-            if name != last_layer:
-                continue
-        
+
+        param = state_dict[name]        
         for value in param.view(-1):
-            (p_m, s_m_all, b_m_all) = get_bin_from_param(value.item())
+            (p_m, s_m_all, b_m_all), _ = get_bin_from_param(value.item(), length=args.msg_len, fixed=args.fixed)
              # limit bits
             b_m = b_m_all[:args.msg_len]
             s_m = s_m_all[:args.msg_len]
@@ -345,3 +367,58 @@ def get_dist_of_params(params1, params2):
                 tmp_dist += 1
         distance.append(tmp_dist)
     return distance
+
+
+def round_bin(Bin, rb):  #1桁で判断 決定版
+    if len(Bin) < 2:
+        return ""
+    ulp=Bin[-2]   #unit in the last place
+    gb =Bin[-1]   #Guard bit
+    sw_up= False
+    if gb=='1':
+        if rb==True:   #Round bit 
+            sw_up=True
+        else:
+            if ulp=='1':
+                sw_up=True
+    result=Bin[:-1]
+    if sw_up==True:
+        return bin(eval('0b'+result) +eval('0b'+(len(Bin)-2)*'0'+'1'))[2:]
+    else:
+        return result
+
+    
+def to_fixed_bin_from_frac(f, degits=31):
+    dec=Decimal(str(f))
+    Bin=''
+    nth=0
+    first=0
+    while dec:
+        if nth>=degits+1:
+            if dec == 0:
+                resudial=False
+            else:    
+                resudial=True
+            Bin=round_bin(Bin, resudial)
+            break
+        nth+=1
+        if dec >= Decimal(0.5):
+            Bin += '1'
+            dec = dec - Decimal(0.5)
+            if first==0:
+                first=nth
+        else:
+            if first !=0:
+                Bin += '0'
+        dec*=2
+    if first == 0:   # nearly equal zero
+        first = nth
+    return '0'*(first-1)+Bin+'0'*(degits-nth)
+
+
+def to_frac_from_fixed_bin(w_strings):
+    dec=Decimal(0.0)
+    for i in range(len(w_strings)):
+        if w_strings[i]=='1':
+            dec += Decimal(2.0)**(-(i+1))
+    return float(dec)
