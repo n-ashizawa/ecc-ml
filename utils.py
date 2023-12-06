@@ -273,7 +273,7 @@ def get_param_from_bin(w_binary, integer_len=2, fixed=False):
         f_strings = w_strings[1+integer_len:]
         i_weight = int(i_strings, 2)
         f_weight = to_frac_from_fixed_bin(f_strings)
-        weight = float(i_weight) + f_weight
+        weight = (float(i_weight) + f_weight) * ((-1)**int(minus_sign))
     else:
         weight = struct.unpack(">f", struct.pack(">L", int(w_strings, 2)))[0]
 
