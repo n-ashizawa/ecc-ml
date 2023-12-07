@@ -24,6 +24,7 @@ def get_args():
     parser.add_argument("--weight-only", action="store_true", default=False)
     parser.add_argument("--sum-params", type=int, default=1)
     parser.add_argument("--msg-len", type=check_max_value, default=32)
+    parser.add_argument("--t", type=int, default=16)
     args = parser.parse_args()
     return args
 

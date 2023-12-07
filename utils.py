@@ -232,8 +232,7 @@ def get_bin_from_param(weight, length=32, fixed=False):
         minus_sign = "0"
         if weight < 0:
             minus_sign = "1"
-            weight = abs(weight)
-        fractional, integer = math.modf(weight)
+        fractional, integer = math.modf(abs(weight))
         i_strings = bin(int(integer))[2:]
         integer_len = len(i_strings)
         if integer_len > length-1:
