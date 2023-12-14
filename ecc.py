@@ -50,9 +50,10 @@ def encode_before(args, model_before, ECC, save_dir, logging):
                 b_b.extend(whole_b_b[:args.msg_len])
             encoded_msg = ECC.encode(b_b)
             msglen = args.msg_len*args.sum_params
+            redlen = args.t*4   # 4 = 8 % 2
             b_es = encoded_msg[:msglen]
-            reds1.append(encoded_msg[msglen:msglen*3])
-            reds2.append(encoded_msg[msglen*3:])
+            reds1.append(encoded_msg[msglen:msglen+redlen])
+            reds2.append(encoded_msg[msglen+redlen:])
             b_e = []
             for i in range(len(whole_b_bs)):
                 b_e = b_es[i*args.msg_len:(i+1)*args.msg_len]
@@ -159,8 +160,18 @@ def main():
         mode = "normal"
     else:
         raise NotImplementedError
-    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.t}"
+    
+    if args.quantized == 0:
+        model_dir = "model"
+        quantized = False
+    elif args.quantized > 0:
+        model_dir = "quantized"
+        quantized = True
+    else:
+        raise NotImplementedError
+
+    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/{model_dir}"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{model_dir}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.t}"
     os.makedirs(save_dir, exist_ok=True)
     
     if args.ecc == "turbo":
@@ -175,14 +186,14 @@ def main():
     if args.mode == "encode":
         logging = get_logger(f"{save_dir}/{args.mode}.log")
         logging_args(args, logging)
-        model = load_model(args, f"{load_dir}/{args.before}", device)
+        model = load_model(args, f"{load_dir}/{args.before}", device, quantized=quantized)
         start_time = time.time()
         encode_before(args, model, ECC, save_dir, logging)
         end_time = time.time()
     elif args.mode == "decode":
         logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
         logging_args(args, logging)
-        model = load_model(args, f"{load_dir}/{args.after}", device)
+        model = load_model(args, f"{load_dir}/{args.after}", device, quantized=quantized)
         start_time = time.time()
         decode_after(args, model, ECC, save_dir, logging)
         end_time = time.time()

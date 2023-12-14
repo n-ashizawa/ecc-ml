@@ -90,7 +90,7 @@ def check_output(args, model_before, model_after, model_decoded, device, save_di
     model_decoded.eval()
     _, test_loader = prepare_dataset(args)
 
-    save_data_file = "/".join(save_dir.split("/")[:4]) + f"/diff{args.after}.npz"
+    save_data_file = "/".join(save_dir.split("/")[:5]) + f"/diff{args.after}.npz"
     if not os.path.isfile(save_data_file):
         indice, outputs = save_output_dist(model_before, model_after, test_loader, device)
         np.savez(save_data_file, indice=indice, outputs=outputs)
@@ -187,16 +187,26 @@ def main():
         mode = "normal"
     else:
         raise NotImplementedError
+    
+    if args.quantized == 0:
+        model_dir = "model"
+        quantized = False
+    elif args.quantized > 0:
+        model_dir = "quantized"
+        quantized = True
+    else:
+        raise NotImplementedError
+
     load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.t}"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{model_dir}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.t}"
     os.makedirs(save_dir, exist_ok=True)
     
     logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
     logging_args(args, logging)
 
-    model_before = load_model(args, f"{load_dir}/{args.before}", device)
-    model_after = load_model(args, f"{load_dir}/{args.after}", device)
-    model_decoded = load_model(args, f"{save_dir}/decoded{args.after}", device)
+    model_before = load_model(args, f"{load_dir}/{args.before}", device, quantized=quantized)
+    model_after = load_model(args, f"{load_dir}/{args.after}", device, quantized=quantized)
+    model_decoded = load_model(args, f"{save_dir}/decoded{args.after}", device, quantized=quantized)
 
     if args.mode == "acc":
         calc_acc(args, model_before, model_after, model_decoded, save_dir, logging)

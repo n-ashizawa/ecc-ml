@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from torchvision import datasets, transforms
 
 from network import *
+from quantize import QuantizedModel, fuse_resnet18
 
 
 def torch_fix_seed(seed=42):
@@ -47,10 +48,13 @@ def make_model(args, device):
     return model
 
 
-def load_model(args, file_name, device):
+def load_model(args, file_name, device, quantized=False):
     model = make_model(args, device)
-    model.load_state_dict(torch.load(
-        f"{file_name}.pt", map_location="cpu"))
+    # load the real state dict
+    if quantized:
+        model = torch.jit.load(f"{file_name}.pt", map_location="cpu")
+    else:
+        model.load_state_dict(torch.load(f"{file_name}.pt", map_location="cpu"))
     print(f"{file_name} model loaded.")
     return model
 
@@ -421,3 +425,8 @@ def to_frac_from_fixed_bin(w_strings):
         if w_strings[i]=='1':
             dec += Decimal(2.0)**(-(i+1))
     return float(dec)
+
+
+def flatten_modules(model):
+    all_modules = {name: module for name, module in model.named_modules()}
+    return {name: module for name, module in all_modules.items() if len(list(module.children())) == 0}

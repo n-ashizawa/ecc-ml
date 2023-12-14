@@ -16,6 +16,7 @@ def get_args():
     parser.add_argument("--pretrained", type=int, default=0)
     parser.add_argument("--label-flipping", type=float, default=0)
     parser.add_argument("--over-fitting", action="store_true", default=False)
+    parser.add_argument("--quantized", type=int, default=0)
     # ecc
     parser.add_argument("--ecc", type=str, default="turbo", choices=["turbo", "rs", "bch"])
     parser.add_argument("--mode", type=str, default="encode", choices=["encode", "decode", "acc", "output"])
@@ -25,6 +26,8 @@ def get_args():
     parser.add_argument("--sum-params", type=int, default=1)
     parser.add_argument("--msg-len", type=check_max_value, default=32)
     parser.add_argument("--t", type=int, default=16)
+    # prune
+    parser.add_argument("--prune-ratio", type=float, default=0)
     args = parser.parse_args()
     return args
 
