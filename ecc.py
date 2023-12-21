@@ -68,15 +68,15 @@ def encode_before(args, model_before, ECC, save_dir, logging):
             is_linear = layer in modules_before and isinstance(modules_before[layer], torch.nn.Linear)   # linear
             #print(layer, "weight:", is_weight, "conv:", is_conv, "linear:", is_linear)
         
-        for i, value in enumerate(param.view(-1)):
+        for ids, value in enumerate(param.view(-1)):
             if args.prune_ratio > 0:
-                original_index = np.unravel_index(i, param.shape)
+                original_index = np.unravel_index(ids, param.shape)
                 if is_conv or is_linear:   # conv or linear
                     if is_weight and weight_ids is not None:   # weight
                         if original_index[1] not in weight_ids:   # targets
                             encoded_params.append(value.item())
                             continue
-                        #print('1', "i:", i, "original:", original_index[1], "wid:", weight_ids)
+                        #print('1', "ids:", ids, "original:", original_index[1], "wid:", weight_ids)
                 if is_conv:   # conv
                     weight_ids = prune_targets_name[layer]   # update
                     #print("new", weight_ids)
@@ -85,7 +85,8 @@ def encode_before(args, model_before, ECC, save_dir, logging):
                     if original_index[0] not in weight_ids:   # targets
                         encoded_params.append(value.item())
                         continue
-                    #print('0', "i:", i, "original:", original_index[0], "wid:", weight_ids)
+                    #print('0', "ids:", ids, "original:", original_index[0], "wid:", weight_ids)
+
             params.append(value.item())
             sum_params += 1
             if args.sum_params > sum_params:
@@ -142,6 +143,11 @@ def decode_after(args, model_after, ECC, save_dir, logging):
     all_reds2 = get_intlist_from_strlist(all_reds2_str)
     logging.info("all no.2 redundants are loaded")
 
+    if args.prune_ratio > 0:
+        prune_targets_name = get_name_from_prune_targets(args, model_before, save_dir)
+        modules_before = {name: module for name, module in model_encoded.named_modules()}
+        weight_ids = None
+        
     i = 0
     for name in state_dict_after:
         if args.last_layer:
@@ -151,13 +157,37 @@ def decode_after(args, model_after, ECC, save_dir, logging):
         if args.weight_only:
             if "weight" not in name:
                 continue
+        if "num_batches_tracked" in name:
+            continue
         
         param = state_dict_after[name]
         decoded_params = []
         params = []
         sum_params = 0
+
+        if args.prune_ratio > 0:
+            layer = '.'.join(name.split('.')[:-1])
+            is_weight = (name.split('.')[-1] == "weight")
+            is_conv = layer in prune_targets_name   # conv
+            is_linear = layer in modules_before and isinstance(modules_before[layer], torch.nn.Linear)   # linear
+            
         j = 0
-        for value in param.view(-1):
+        for ids, value in enumerate(param.view(-1)):
+            if args.prune_ratio > 0:
+                original_index = np.unravel_index(ids, param.shape)
+                if is_conv or is_linear:   # conv or linear
+                    if is_weight and weight_ids is not None:   # weight
+                        if original_index[1] not in weight_ids:   # targets
+                            decoded_params.append(value.item())
+                            continue
+                if is_conv:   # conv
+                    weight_ids = prune_targets_name[layer]   # update
+                
+                if not is_linear:
+                    if original_index[0] not in weight_ids:   # targets
+                        decoded_params.append(value.item())
+                        continue
+
             params.append(value.item())
             sum_params += 1
             if args.sum_params > sum_params:
