@@ -39,7 +39,7 @@ def encode_before(args, model_before, ECC, save_dir, logging):
     all_reds2 = []
     if args.prune_ratio > 0:
         prune_targets_name = get_name_from_prune_targets(args, model_before, save_dir)
-        modules_before = {name: module for name, module in model_encoded.named_modules()}
+        modules_before = {name: module for name, module in model_before.named_modules()}
         weight_ids = None
     
     for name in state_dict_before:
@@ -144,8 +144,8 @@ def decode_after(args, model_after, ECC, save_dir, logging):
     logging.info("all no.2 redundants are loaded")
 
     if args.prune_ratio > 0:
-        prune_targets_name = get_name_from_prune_targets(args, model_before, save_dir)
-        modules_before = {name: module for name, module in model_encoded.named_modules()}
+        prune_targets_name = get_name_from_prune_targets(args, model_after, save_dir)
+        modules_after = {name: module for name, module in model_after.named_modules()}
         weight_ids = None
         
     i = 0
@@ -169,7 +169,7 @@ def decode_after(args, model_after, ECC, save_dir, logging):
             layer = '.'.join(name.split('.')[:-1])
             is_weight = (name.split('.')[-1] == "weight")
             is_conv = layer in prune_targets_name   # conv
-            is_linear = layer in modules_before and isinstance(modules_before[layer], torch.nn.Linear)   # linear
+            is_linear = layer in modules_after and isinstance(modules_after[layer], torch.nn.Linear)   # linear
             
         j = 0
         for ids, value in enumerate(param.view(-1)):
