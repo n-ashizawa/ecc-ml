@@ -425,8 +425,3 @@ def to_frac_from_fixed_bin(w_strings):
         if w_strings[i]=='1':
             dec += Decimal(2.0)**(-(i+1))
     return float(dec)
-
-
-def flatten_modules(model):
-    all_modules = {name: module for name, module in model.named_modules()}
-    return {name: module for name, module in all_modules.items() if len(list(module.children())) == 0}

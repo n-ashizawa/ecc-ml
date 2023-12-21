@@ -61,20 +61,25 @@ class BasicBlock(nn.Module):
         return steps
     
     def get_input_info(self):
-        # Manually specify which steps take 'x' and/or 'output' as input
-        input_list = ['x', 'x', 'x', 'x', 'x',]
-
+        # Manually specify which steps take 'x' and/or 'output' as input and generate 'y'
+        input_info = [{'x':True, 'y': False, 'generate': True},  # 'x' is input and output, 'y' is generated
+            {'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},]  # 'x' is input and output, 'y' is not generated
+        
         if self.shortcut is not None:
             # Assuming each module in self.shortcut takes 'x' as input
-            shortcut_input_list = ['y'] * len(self.shortcut)
-            input_list.extend(shortcut_input_list)
+            shortcut_input_list = [{'x':False, 'y': True, 'generate': False}] * len(self.shortcut)  # 'y' is input and output, 'y' is not generated
+            input_info.extend(shortcut_input_list)
         else:
             # The identity function takes 'x' as input
-            input_list.append('y')
+            input_info.append({'x':False, 'y': True, 'generate': False})  # 'y' is input and output, 'y' is not generated
         
-        input_list.extend([['x', 'y'], 'x'])
+        input_info.extend([{'x':True, 'y': True, 'generate': False},   # 'x' and 'y' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False}])  # 'x' is input and output, 'y' is not generated
 
-        return input_list
+        return input_info
 
 
 class Bottleneck(nn.Module):
@@ -132,20 +137,28 @@ class Bottleneck(nn.Module):
         return steps
 
     def get_input_info(self):
-        # Manually specify which steps take 'x' and/or 'output' as input
-        input_list = ['x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',]
-
+        # Manually specify which steps take 'x' and/or 'output' as input and generate 'y'
+        input_info = [{'x':True, 'y': False, 'generate': True},  # 'x' is input and output, 'y' is generated
+            {'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},]  # 'x' is input and output, 'y' is not generated
+        
         if self.shortcut is not None:
             # Assuming each module in self.shortcut takes 'x' as input
-            shortcut_input_list = ['y'] * len(self.shortcut)
-            input_list.extend(shortcut_input_list)
+            shortcut_input_list = [{'x':False, 'y': True, 'generate': False}] * len(self.shortcut)  # 'y' is input and output, 'y' is not generated
+            input_info.extend(shortcut_input_list)
         else:
             # The identity function takes 'x' as input
-            input_list.append('y')
+            input_info.append({'x':False, 'y': True, 'generate': False})  # 'y' is input and output, 'y' is not generated
         
-        input_list.extend([['x', 'y'], 'x'])
-        
-        return input_list
+        input_info.extend([{'x':True, 'y': True, 'generate': False},   # 'x' and 'y' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False}])  # 'x' is input and output, 'y' is not generated
+
+        return input_info
 
 
 class ResNet(nn.Module):
@@ -199,17 +212,22 @@ class ResNet(nn.Module):
 
         return steps
 
-    def get_input_list(self):
-        input_list = ['x', 'x', 'x']
+    def get_input_info(self):
+        # Manually specify which steps take 'x' and/or 'output' as input and generate 'y'
+        input_info = [{'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},]  # 'x' is input and output, 'y' is not generated
 
         for layer in [self.layer1, self.layer2, self.layer3, self.layer4]:
             for block in layer:
-                block_input_list = block.get_input_list()
-                input_list.extend(block_input_list)
+                block_input_info = block.get_input_info()
+                input_info.extend(block_input_info)
 
-        input_list.extend(['x', 'x', 'x'])
+        input_info.extend([{'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},  # 'x' is input and output, 'y' is not generated
+            {'x':True, 'y': False, 'generate': False},])  # 'x' is input and output, 'y' is not generated
 
-        return input_list
+        return input_info
 
 
 def ResNet18():

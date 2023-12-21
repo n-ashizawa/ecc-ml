@@ -13,14 +13,35 @@ from arguments import get_args
 from logger import get_logger, logging_args
 
 
+def get_name_from_prune_targets(args, model, save_dir):
+    save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune_targets{args.prune_ratio}.npy"
+    prune_targets = np.load(save_data_file)
+    get_forward_steps = model.get_forward_steps()
+
+    prune_targets_name = {}
+    for layer, weight_id in prune_targets:
+        target_module = get_forward_steps[layer]
+        for name, module in model.named_modules():
+            if id(module) == id(target_module):
+                if name not in prune_targets_name:
+                    prune_targets_name[name] = []
+                prune_targets_name[name].append(weight_id)
+
+    return prune_targets_name
+
+
 def encode_before(args, model_before, ECC, save_dir, logging):
-    model_encoded = copy.deepcopy(model_before)
     # Get the state dict
+    model_encoded = copy.deepcopy(model_before)
     state_dict_before = model_before.state_dict()
     state_dict_encoded = model_encoded.state_dict()
     all_reds1 = []
     all_reds2 = []
-
+    if args.prune_ratio > 0:
+        prune_targets_name = get_name_from_prune_targets(args, model_before, save_dir)
+        modules_before = {name: module for name, module in model_encoded.named_modules()}
+        weight_ids = None
+    
     for name in state_dict_before:
         if args.last_layer:
             last_layer = [n for n in state_dict_before][-1].split(".")[0]
@@ -29,14 +50,42 @@ def encode_before(args, model_before, ECC, save_dir, logging):
         if args.weight_only:
             if "weight" not in name:
                 continue
-        
+        if "num_batches_tracked" in name:
+            continue
+
         param = state_dict_before[name]
         encoded_params = []
         reds1 = []
         reds2 = []
         params = []
         sum_params = 0
-        for value in param.view(-1):
+
+        if args.prune_ratio > 0:
+            #print(name, param.shape)
+            layer = '.'.join(name.split('.')[:-1])
+            is_weight = (name.split('.')[-1] == "weight")
+            is_conv = layer in prune_targets_name   # conv
+            is_linear = layer in modules_before and isinstance(modules_before[layer], torch.nn.Linear)   # linear
+            #print(layer, "weight:", is_weight, "conv:", is_conv, "linear:", is_linear)
+        
+        for i, value in enumerate(param.view(-1)):
+            if args.prune_ratio > 0:
+                original_index = np.unravel_index(i, param.shape)
+                if is_conv or is_linear:   # conv or linear
+                    if is_weight and weight_ids is not None:   # weight
+                        if original_index[1] not in weight_ids:   # targets
+                            encoded_params.append(value.item())
+                            continue
+                        #print('1', "i:", i, "original:", original_index[1], "wid:", weight_ids)
+                if is_conv:   # conv
+                    weight_ids = prune_targets_name[layer]   # update
+                    #print("new", weight_ids)
+                
+                if not is_linear:
+                    if original_index[0] not in weight_ids:   # targets
+                        encoded_params.append(value.item())
+                        continue
+                    #print('0', "i:", i, "original:", original_index[0], "wid:", weight_ids)
             params.append(value.item())
             sum_params += 1
             if args.sum_params > sum_params:
@@ -171,7 +220,7 @@ def main():
         raise NotImplementedError
 
     load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/{model_dir}"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{model_dir}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.t}"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{model_dir}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.prune_ratio}/{args.t}"
     os.makedirs(save_dir, exist_ok=True)
     
     if args.ecc == "turbo":
