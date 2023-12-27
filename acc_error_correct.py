@@ -19,9 +19,9 @@ def calc_acc(args, model_before, model_after, model_decoded, save_dir, logging):
 
     # save parameters
     # {"p_m":[], "s_m":[], "b_m":[]} m: before, after, decoded
-    params_before = get_params_info(args, model_before)
-    params_after = get_params_info(args, model_after)
-    params_decoded = get_params_info(args, model_decoded)
+    params_before = get_params_info(args, model_before, save_dir)
+    params_after = get_params_info(args, model_after, save_dir)
+    params_decoded = get_params_info(args, model_decoded, save_dir)
     params_info = {"before":params_before, "after":params_after, "decoded":params_decoded}
     
     # plot parameters
@@ -187,26 +187,17 @@ def main():
         mode = "normal"
     else:
         raise NotImplementedError
-    
-    if args.quantized == 0:
-        model_dir = "model"
-        quantized = False
-    elif args.quantized > 0:
-        model_dir = "quantized"
-        quantized = True
-    else:
-        raise NotImplementedError
+
 
     load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{model_dir}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.t}"
-    os.makedirs(save_dir, exist_ok=True)
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/model/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.prune_ratio}/{args.t}"
     
     logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
     logging_args(args, logging)
 
-    model_before = load_model(args, f"{load_dir}/{args.before}", device, quantized=quantized)
-    model_after = load_model(args, f"{load_dir}/{args.after}", device, quantized=quantized)
-    model_decoded = load_model(args, f"{save_dir}/decoded{args.after}", device, quantized=quantized)
+    model_before = load_model(args, f"{load_dir}/{args.before}", device)
+    model_after = load_model(args, f"{load_dir}/{args.after}", device)
+    model_decoded = load_model(args, f"{save_dir}/decoded{args.after}", device)
 
     if args.mode == "acc":
         calc_acc(args, model_before, model_after, model_decoded, save_dir, logging)

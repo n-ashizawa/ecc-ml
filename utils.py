@@ -48,13 +48,10 @@ def make_model(args, device):
     return model
 
 
-def load_model(args, file_name, device, quantized=False):
+def load_model(args, file_name, device):
     model = make_model(args, device)
     # load the real state dict
-    if quantized:
-        model = torch.jit.load(f"{file_name}.pt", map_location="cpu")
-    else:
-        model.load_state_dict(torch.load(f"{file_name}.pt", map_location="cpu"))
+    model.load_state_dict(torch.load(f"{file_name}.pt", map_location="cpu"))
     print(f"{file_name} model loaded.")
     return model
 
@@ -335,9 +332,15 @@ def get_intlist_from_strlist(strlist):
     return intlist
 
 
-def get_params_info(args, model):
+def get_params_info(args, model, save_dir):
     state_dict = model.state_dict()
     params = {"p_m":[], "s_m":[], "b_m":[]}
+
+    if args.prune_ratio > 0:
+        prune_targets_name = get_name_from_prune_targets(args, model, save_dir)
+        modules = {name: module for name, module in model.named_modules()}
+        weight_ids = None
+
     for name in state_dict:
         if args.last_layer:
             last_layer = [n for n in state_dict][-1].split(".")[0]
@@ -346,9 +349,31 @@ def get_params_info(args, model):
         if args.weight_only:
             if "weight" not in name:
                 continue
+        if "num_batches_tracked" in name:
+            continue
 
-        param = state_dict[name]        
-        for value in param.view(-1):
+        param = state_dict[name]
+
+        if args.prune_ratio > 0:
+            layer = '.'.join(name.split('.')[:-1])
+            is_weight = (name.split('.')[-1] == "weight")
+            is_conv = layer in prune_targets_name   # conv
+            is_linear = layer in modules and isinstance(modules[layer], torch.nn.Linear)   # linear
+               
+        for ids, value in enumerate(param.view(-1)):
+            if args.prune_ratio > 0:
+                original_index = np.unravel_index(ids, param.shape)
+                if is_conv or is_linear:   # conv or linear
+                    if is_weight and weight_ids is not None:   # weight
+                        if original_index[1] not in weight_ids:   # targets
+                            continue
+                if is_conv:   # conv
+                    weight_ids = prune_targets_name[layer]   # update
+                
+                if not is_linear:
+                    if original_index[0] not in weight_ids:   # targets
+                        continue
+            
             (p_m, s_m_all, b_m_all), _ = get_bin_from_param(value.item(), length=args.msg_len, fixed=args.fixed)
              # limit bits
             b_m = b_m_all[:args.msg_len]
@@ -425,3 +450,20 @@ def to_frac_from_fixed_bin(w_strings):
         if w_strings[i]=='1':
             dec += Decimal(2.0)**(-(i+1))
     return float(dec)
+
+
+def get_name_from_prune_targets(args, model, save_dir):
+    save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune/prune_targets{args.prune_ratio}.npy"
+    prune_targets = np.load(save_data_file)
+    get_forward_steps = model.get_forward_steps()
+
+    prune_targets_name = {}
+    for layer, weight_id in prune_targets:
+        target_module = get_forward_steps[layer]
+        for name, module in model.named_modules():
+            if id(module) == id(target_module):
+                if name not in prune_targets_name:
+                    prune_targets_name[name] = []
+                prune_targets_name[name].append(weight_id)
+
+    return prune_targets_name

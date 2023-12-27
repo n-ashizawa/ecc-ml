@@ -166,24 +166,15 @@ def main():
         mode = "normal"
     else:
         raise NotImplementedError
-    
-    if args.quantized == 0:
-        model_dir = "model"
-        quantized = False
-    elif args.quantized > 0:
-        model_dir = "quantized"
-        quantized = True
-    else:
-        raise NotImplementedError
 
     load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{model_dir}"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/model/prune"
     os.makedirs(save_dir, exist_ok=True)
     
     logging = get_logger(f"{save_dir}/prune{args.prune_ratio}.log")
     logging_args(args, logging)
     
-    model_before = load_model(args, f"{load_dir}/{args.before}", device, quantized=quantized)
+    model_before = load_model(args, f"{load_dir}/{args.before}", device)
 
     prune(args, model_before, device, save_dir, logging)
     exit()

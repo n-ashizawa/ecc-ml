@@ -13,23 +13,6 @@ from arguments import get_args
 from logger import get_logger, logging_args
 
 
-def get_name_from_prune_targets(args, model, save_dir):
-    save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune_targets{args.prune_ratio}.npy"
-    prune_targets = np.load(save_data_file)
-    get_forward_steps = model.get_forward_steps()
-
-    prune_targets_name = {}
-    for layer, weight_id in prune_targets:
-        target_module = get_forward_steps[layer]
-        for name, module in model.named_modules():
-            if id(module) == id(target_module):
-                if name not in prune_targets_name:
-                    prune_targets_name[name] = []
-                prune_targets_name[name].append(weight_id)
-
-    return prune_targets_name
-
-
 def encode_before(args, model_before, ECC, save_dir, logging):
     # Get the state dict
     model_encoded = copy.deepcopy(model_before)
@@ -239,18 +222,9 @@ def main():
         mode = "normal"
     else:
         raise NotImplementedError
-    
-    if args.quantized == 0:
-        model_dir = "model"
-        quantized = False
-    elif args.quantized > 0:
-        model_dir = "quantized"
-        quantized = True
-    else:
-        raise NotImplementedError
 
-    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/{model_dir}"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.seed}/{args.before}/{model_dir}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.prune_ratio}/{args.t}"
+    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/model/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.prune_ratio}/{args.t}"
     os.makedirs(save_dir, exist_ok=True)
     
     if args.ecc == "turbo":
@@ -265,14 +239,14 @@ def main():
     if args.mode == "encode":
         logging = get_logger(f"{save_dir}/{args.mode}.log")
         logging_args(args, logging)
-        model = load_model(args, f"{load_dir}/{args.before}", device, quantized=quantized)
+        model = load_model(args, f"{load_dir}/{args.before}", device)
         start_time = time.time()
         encode_before(args, model, ECC, save_dir, logging)
         end_time = time.time()
     elif args.mode == "decode":
         logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
         logging_args(args, logging)
-        model = load_model(args, f"{load_dir}/{args.after}", device, quantized=quantized)
+        model = load_model(args, f"{load_dir}/{args.after}", device)
         start_time = time.time()
         decode_after(args, model, ECC, save_dir, logging)
         end_time = time.time()
