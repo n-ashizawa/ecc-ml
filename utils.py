@@ -337,7 +337,7 @@ def get_params_info(args, model, save_dir):
     params = {"p_m":[], "s_m":[], "b_m":[]}
 
     if args.prune_ratio > 0:
-        prune_targets_name = get_name_from_prune_targets(args, model, save_dir)
+        correct_targets_name = get_name_from_correct_targets(args, model, save_dir)
         modules = {name: module for name, module in model.named_modules()}
         weight_ids = None
 
@@ -357,7 +357,7 @@ def get_params_info(args, model, save_dir):
         if args.prune_ratio > 0:
             layer = '.'.join(name.split('.')[:-1])
             is_weight = (name.split('.')[-1] == "weight")
-            is_conv = layer in prune_targets_name   # conv
+            is_conv = layer in correct_targets_name   # conv
             is_linear = layer in modules and isinstance(modules[layer], torch.nn.Linear)   # linear
                
         for ids, value in enumerate(param.view(-1)):
@@ -368,7 +368,7 @@ def get_params_info(args, model, save_dir):
                         if original_index[1] not in weight_ids:   # targets
                             continue
                 if is_conv:   # conv
-                    weight_ids = prune_targets_name[layer]   # update
+                    weight_ids = correct_targets_name[layer]   # update
                 
                 if not is_linear:
                     if original_index[0] not in weight_ids:   # targets
@@ -452,18 +452,18 @@ def to_frac_from_fixed_bin(w_strings):
     return float(dec)
 
 
-def get_name_from_prune_targets(args, model, save_dir):
-    save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune/prune_targets{args.prune_ratio}.npy"
-    prune_targets = np.load(save_data_file)
+def get_name_from_correct_targets(args, model, save_dir):
+    save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune/targets{1-args.prune_ratio}.npy"
+    targets = np.load(save_data_file)
     get_forward_steps = model.get_forward_steps()
 
-    prune_targets_name = {}
-    for layer, weight_id in prune_targets:
+    correct_targets_name = {}
+    for layer, weight_id in correct_targets:
         target_module = get_forward_steps[layer]
         for name, module in model.named_modules():
             if id(module) == id(target_module):
-                if name not in prune_targets_name:
-                    prune_targets_name[name] = []
-                prune_targets_name[name].append(weight_id)
+                if name not in correct_targets_name:
+                    correct_targets_name[name] = []
+                correct_targets_name[name].append(weight_id)
 
-    return prune_targets_name
+    return correct_targets_name

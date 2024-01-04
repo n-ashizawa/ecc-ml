@@ -84,24 +84,24 @@ class FilterPrunner:
             v = v / np.sqrt(torch.sum(v * v))
             self.filter_ranks[i] = v.cpu()
 
-    def get_prunning_plan(self, num_filters_to_prune):
-        filters_to_prune = self.highest_ranking_filters(num_filters_to_prune)
+    def get_pruning_plan(self, num_filters_to_correct):
+        filters_to_correct = self.highest_ranking_filters(num_filters_to_correct)
 
         # After each of the k filters are prunned,
         # the filter index of the next filters change since the model is smaller.
-        filters_to_prune_per_layer = {}
-        for (l, f, _) in filters_to_prune:
-            if l not in filters_to_prune_per_layer:
-                filters_to_prune_per_layer[l] = []
-            filters_to_prune_per_layer[l].append(f)
+        filters_to_correct_per_layer = {}
+        for (l, f, _) in filters_to_correct:
+            if l not in filters_to_correct_per_layer:
+                filters_to_correct_per_layer[l] = []
+            filters_to_correct_per_layer[l].append(f)
 
-        filters_to_prune = []
-        for l in filters_to_prune_per_layer:
-            filters_to_prune_per_layer[l] = sorted(filters_to_prune_per_layer[l])
-            for i in filters_to_prune_per_layer[l]:
-                filters_to_prune.append((l, i))
+        filters_to_correct = []
+        for l in filters_to_correct_per_layer:
+            filters_to_correct_per_layer[l] = sorted(filters_to_correct_per_layer[l])
+            for i in filters_to_correct_per_layer[l]:
+                filters_to_correct.append((l, i))
         
-        return filters_to_prune
+        return filters_to_correct
 
 
 def total_num_filters(model):
@@ -133,24 +133,25 @@ def train_epoch(model, prunner, train_loader, device, optimizer=None, rank_filte
         train_batch(model, prunner, optimizer, criterion, batch, label, rank_filters, device)
 
 
-def get_candidates_to_prune(model, train_loader, num_filters_to_prune, device):
+def get_candidates_to_correct(model, train_loader, num_filters_to_correct, device):
     prunner = FilterPrunner(model, device) 
     prunner.reset()
     train_epoch(model, prunner, train_loader, device, rank_filters=True)
     prunner.normalize_ranks_per_layer()
-    return prunner.get_prunning_plan(num_filters_to_prune)
+    return prunner.get_pruning_plan(num_filters_to_correct)
         
         
 def prune(args, model, device, save_dir, logging):
-    save_data_file = f"{save_dir}/prune_targets{args.prune_ratio}.npy"
+    correcting_rate = 1 - args.prune_ratio
+    save_data_file = f"{save_dir}/targets{correcting_rate}.npy"
     train_loader, test_loader = prepare_dataset(args)
     
     number_of_filters = total_num_filters(model)
-    num_filters_to_prune = int(number_of_filters * args.prune_ratio)
-    logging.info(f"Number of prunning to reduce {args.prune_ratio*100}% filters: {num_filters_to_prune}")
+    num_filters_to_correct = int(number_of_filters * correcting_rate)
+    logging.info(f"Number of parameters to correct {correcting_rate*100}% filters: {num_filters_to_correct}")
 
-    prune_targets = get_candidates_to_prune(model, train_loader, num_filters_to_prune, device)
-    np.save(save_data_file, prune_targets)
+    targets = get_candidates_to_correct(model, train_loader, num_filters_to_correct, device)
+    np.save(save_data_file, targets)
 
         
 def main():
@@ -171,12 +172,17 @@ def main():
     save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/model/prune"
     os.makedirs(save_dir, exist_ok=True)
     
-    logging = get_logger(f"{save_dir}/prune{args.prune_ratio}.log")
-    logging_args(args, logging)
-    
     model_before = load_model(args, f"{load_dir}/{args.before}", device)
 
-    prune(args, model_before, device, save_dir, logging)
+    prune_ratio = [0.1, 0.2, 0.3, 0.4, 0.5, 
+                   0.6, 0.7, 0.8, 0.9]
+
+    logging = get_logger(f"{save_dir}/prune{prune_ratio[0]}-{prune_ratio[-1]}({len(prune_ratio)}).log")
+    logging_args(args, logging)
+
+    for p in prune_ratio:
+        args.prune_ratio = p
+        prune(args, model_before, device, save_dir, logging)
     exit()
 
 

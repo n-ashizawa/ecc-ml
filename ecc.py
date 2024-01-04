@@ -21,7 +21,7 @@ def encode_before(args, model_before, ECC, save_dir, logging):
     all_reds1 = []
     all_reds2 = []
     if args.prune_ratio > 0:
-        prune_targets_name = get_name_from_prune_targets(args, model_before, save_dir)
+        correct_targets_name = get_name_from_correct_targets(args, model_before, save_dir)
         modules_before = {name: module for name, module in model_before.named_modules()}
         weight_ids = None
     
@@ -44,13 +44,11 @@ def encode_before(args, model_before, ECC, save_dir, logging):
         sum_params = 0
 
         if args.prune_ratio > 0:
-            #print(name, param.shape)
             layer = '.'.join(name.split('.')[:-1])
             is_weight = (name.split('.')[-1] == "weight")
-            is_conv = layer in prune_targets_name   # conv
+            is_conv = layer in correct_targets_name   # conv
             is_linear = layer in modules_before and isinstance(modules_before[layer], torch.nn.Linear)   # linear
-            #print(layer, "weight:", is_weight, "conv:", is_conv, "linear:", is_linear)
-        
+            
         for ids, value in enumerate(param.view(-1)):
             if args.prune_ratio > 0:
                 original_index = np.unravel_index(ids, param.shape)
@@ -61,7 +59,7 @@ def encode_before(args, model_before, ECC, save_dir, logging):
                             continue
                         #print('1', "ids:", ids, "original:", original_index[1], "wid:", weight_ids)
                 if is_conv:   # conv
-                    weight_ids = prune_targets_name[layer]   # update
+                    weight_ids = correct_targets_name[layer]   # update
                     #print("new", weight_ids)
                 
                 if not is_linear:
@@ -127,7 +125,7 @@ def decode_after(args, model_after, ECC, save_dir, logging):
     logging.info("all no.2 redundants are loaded")
 
     if args.prune_ratio > 0:
-        prune_targets_name = get_name_from_prune_targets(args, model_after, save_dir)
+        correct_targets_name = get_name_from_correct_targets(args, model_after, save_dir)
         modules_after = {name: module for name, module in model_after.named_modules()}
         weight_ids = None
         
@@ -151,7 +149,7 @@ def decode_after(args, model_after, ECC, save_dir, logging):
         if args.prune_ratio > 0:
             layer = '.'.join(name.split('.')[:-1])
             is_weight = (name.split('.')[-1] == "weight")
-            is_conv = layer in prune_targets_name   # conv
+            is_conv = layer in correct_targets_name   # conv
             is_linear = layer in modules_after and isinstance(modules_after[layer], torch.nn.Linear)   # linear
             
         j = 0
@@ -164,7 +162,7 @@ def decode_after(args, model_after, ECC, save_dir, logging):
                             decoded_params.append(value.item())
                             continue
                 if is_conv:   # conv
-                    weight_ids = prune_targets_name[layer]   # update
+                    weight_ids = correct_targets_name[layer]   # update
                 
                 if not is_linear:
                     if original_index[0] not in weight_ids:   # targets
@@ -224,7 +222,7 @@ def main():
         raise NotImplementedError
 
     load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/model/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.prune_ratio}/{args.t}"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/model/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{1.0-args.prune_ratio}/{args.t}"
     os.makedirs(save_dir, exist_ok=True)
     
     if args.ecc == "turbo":

@@ -39,8 +39,8 @@ def main():
     
     save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/model/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.prune_ratio}/{args.t}/finetune/{args.mode}"
     os.makedirs(save_dir, exist_ok=True)
-    save_model_dir = f"{save_dir}/model"
-    os.makedirs(save_model_dir, exist_ok=True)
+    #save_model_dir = f"{save_dir}/model"
+    #os.makedirs(save_model_dir, exist_ok=True)
     logging = get_logger(f"{save_dir}/finetune.log")
     logging_args(args, logging)
 
@@ -71,7 +71,7 @@ def main():
             f"VAL LOSS: {loss:.6f}")
 
         # save model
-        save_model(model, f"{save_model_dir}/{epoch}")
+        #save_model(model, f"{save_model_dir}/{epoch}")
 
     del model
     torch.cuda.empty_cache()
