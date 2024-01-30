@@ -178,9 +178,10 @@ def label_flipping(args, train_set, save_dir=""):
         train_set.targets[idx] = new_label
         flipping_records.append((str(idx), str(current_label), str(new_label)))
     
-    save_data_file = f"{save_dir}/flipping_records"
-    if not os.path.isfile(f"{save_data_file}.txt"):
-        write_varlen_csv(flipping_records, save_data_file)
+    if save_dir != "":
+        save_data_file = f"{save_dir}/flipping_records"
+        if not os.path.isfile(f"{save_data_file}.txt"):
+            write_varlen_csv(flipping_records, save_data_file)
     
     return train_set
 
@@ -208,8 +209,8 @@ def prepare_dataset(args, save_dir=""):
             transform=test_trans,
     )
 
-    if save_dir != "":
-        train_set = label_flipping(args, train_set, save_dir=save_dir)
+    
+    train_set = label_flipping(args, train_set, save_dir=save_dir)
 
     train_loader = DataLoader(
             train_set,
@@ -453,7 +454,10 @@ def to_frac_from_fixed_bin(w_strings):
 
 
 def get_name_from_correct_targets(args, model, save_dir):
-    save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune/targets{args.target_ratio}.npy"
+    if args.random_target:
+        save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune/random_targets{args.target_ratio}.npy"
+    else:
+        save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune/targets{args.target_ratio}.npy"
     targets = np.load(save_data_file)
     get_forward_steps = model.get_forward_steps()
 

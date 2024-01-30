@@ -11,33 +11,55 @@ def get_load_dir_name(args, taget_param, candidate):
         "ecc": args.ecc, "target_ratio": args.target_ratio, "t": args.t}
 
     params[taget_param] = candidate
-    load_dir = f"{params['before']}/{params['fixed']}/False/False/{params['msg_len']}/{params['ecc']}/1/{params['target_ratio']}/{params['t']}"
+    if args.random_target:
+        load_dir = f"{params['before']}/{params['fixed']}/False/False/{params['msg_len']}/{params['ecc']}/1/{params['target_ratio']}/{params['t']}/random"
+    else:
+        load_dir = f"{params['before']}/{params['fixed']}/False/False/{params['msg_len']}/{params['ecc']}/1/{params['target_ratio']}/{params['t']}/re"
     return load_dir
 
 
 def create_summary_files(args, target_param, candidates, seeds, save_dir):
     # Create a new file for this target_param value
-    with open(f"{save_dir}/{target_param}{'-'.join(candidates)}.txt", "w") as f:
+    with open(f"{save_dir}/{target_param}{'-'.join(candidates)}.csv", "w") as f:
         writer = csv.writer(f)
         writer.writerow(['', "seed"] + candidates)
         writer.writerow([])
 
         encode_time = [["encode time"]]
         decode_time = [["decode time"]]
+        all_time = [["all time"]]
+        average_time = ['', "ave."]
+        sum_all_time = [0]*len(candidates)
+        reds_size = [["reds size"]]
+        average_size = ['', "ave."]
+        sum_reds_size = [0]*len(candidates)
         decoded_acc = [["decoded acc"]]
         decoded_loss = [["decoded loss"]]
+        average_decoded_loss = ['', "ave."]
+        sum_decoded_loss = [0]*len(candidates)
         before_acc = [["before acc"]]
         before_loss = [["before loss"]]
+        average_before_loss = ['', "ave."]
+        sum_before_loss = [0]*len(candidates)
         after_acc = [["after acc"]]
         after_loss = [["after loss"]]
+        average_after_loss = ['', "ave."]
+        sum_after_loss = [0]*len(candidates)
         output_diff_before_after = [["output diff b/w before and after"]]
         output_diff_before_decoded_inside = [["output diff b/w before and decoded (inside)"]]
         output_diff_before_decoded_outside = [["output diff b/w before and decoded (outside)"]]
+        output_diff_before_decoded_all = [["output diff b/w before and decoded (all)"]]
+        output_diff_rate = [["output diff (rate)"]]
+        average_output_diff = ['', "ave."]
+        sum_output_diff = [0]*len(candidates)
+        
     
         for seed in seeds:
-            load_parent_dir = f"{'/'.join(save_dir.split('/')[:-1])}/{seed}"
+            load_parent_dir = f"{'/'.join(save_dir.split('/')[:3])}/{seed}"
             encode_time_per_seed = ['', seed]
             decode_time_per_seed = ['', seed]
+            all_time_per_seed = ['', seed]
+            reds_size_per_seed = ['', seed]
             decoded_acc_per_seed = ['', seed]
             decoded_loss_per_seed = ['', seed]
             before_acc_per_seed = ['', seed]
@@ -47,26 +69,51 @@ def create_summary_files(args, target_param, candidates, seeds, save_dir):
             output_diff_before_after_per_seed = ['', seed]
             output_diff_before_decoded_inside_per_seed = ['', seed]
             output_diff_before_decoded_outside_per_seed = ['', seed]
+            output_diff_before_decoded_all_per_seed = ['', seed]
+            output_diff_rate_per_seed = ['', seed]
 
-            for c in candidates:
+            for i, c in enumerate(candidates):
                 load_dir = f"{load_parent_dir}/{get_load_dir_name(args, target_param, c)}"
         
                 with open(f"{load_dir}/encode.log", "r") as log_file:
-                    encode_time_per_seed.append(re.search(r"time cost: (\d+\.\d+)", log_file.read()).group(1))
+                    print(f"opend {load_dir}/encode.log")
+                    etime = float(re.search(r"time cost: (\d+\.\d+)", log_file.read()).group(1))
 
                 with open(f"{load_dir}/decode{args.after}.log", "r") as log_file:
-                    decode_time_per_seed.append(re.search(r"time cost: (\d+\.\d+)", log_file.read()).group(1))
+                    print(f"opend {load_dir}/decode{args.after}.log")
+                    dtime = float(re.search(r"time cost: (\d+\.\d+)", log_file.read()).group(1))
+
+                encode_time_per_seed.append(etime)
+                decode_time_per_seed.append(dtime)
+                atime = etime + dtime
+                all_time_per_seed.append(atime)
+                sum_all_time[i] += atime
+                
+                reds1  = f"{load_dir}/reds1.txt"
+                reds1_size = os.path.getsize(reds1)
+                reds2  = f"{load_dir}/reds2.txt"
+                reds2_size = os.path.getsize(reds2)
+                reds_size_per_seed.append(reds1_size + reds2_size)
+                sum_reds_size[i] += reds1_size + reds2_size
 
                 with open(f"{load_dir}/output{args.after}.log", "r") as log_file:
+                    print(f"opend {load_dir}/output{args.after}.log")
                     log_content = log_file.read()
                     decoded_acc_per_seed.append(re.search(r"Decoded\s+acc: (\d+\.\d+)", log_content).group(1))
-                    decoded_loss_per_seed.append(re.search(r"Decoded\s+acc: \d+\.\d+,\s+loss:\s+(\d+\.\d+)", log_content).group(1))
+                    loss = float(re.search(r"Decoded\s+acc: \d+\.\d+,\s+loss:\s+(\d+\.\d+)", log_content).group(1))
+                    decoded_loss_per_seed.append(loss)
+                    sum_decoded_loss[i] += loss
                     before_acc_per_seed.append(re.search(r"Before\s+acc: (\d+\.\d+)", log_content).group(1))
-                    before_loss_per_seed.append(re.search(r"Before\s+acc: \d+\.\d+,\s+loss:\s+(\d+\.\d+)", log_content).group(1))
+                    loss = float(re.search(r"Before\s+acc: \d+\.\d+,\s+loss:\s+(\d+\.\d+)", log_content).group(1))
+                    before_loss_per_seed.append(loss)
+                    sum_before_loss[i] += loss
                     after_acc_per_seed.append(re.search(r"After\s+acc: (\d+\.\d+)", log_content).group(1))
-                    after_loss_per_seed.append(re.search(r"After\s+acc: \d+\.\d+,\s+loss:\s+(\d+\.\d+)", log_content).group(1))
+                    loss = float(re.search(r"After\s+acc: \d+\.\d+,\s+loss:\s+(\d+\.\d+)", log_content).group(1))
+                    after_loss_per_seed.append(loss)
+                    sum_after_loss[i] += loss
                 
                 with open(f"{load_dir}/output{args.after}.txt", "r") as txt_file:
+                    print(f"opend {load_dir}/output{args.after}.txt")
                     line = txt_file.readline()
                     numbers = re.findall(r'\d+', line)
                     if len(numbers) != 3:
@@ -74,27 +121,52 @@ def create_summary_files(args, target_param, candidates, seeds, save_dir):
                     output_diff_before_after_per_seed.append(numbers[0])
                     output_diff_before_decoded_inside_per_seed.append(numbers[1])
                     output_diff_before_decoded_outside_per_seed.append(numbers[2])
+                    diff = float(numbers[1]) + float(numbers[2])
+                    output_diff_before_decoded_all_per_seed.append(diff)
+                    rate = diff / float(numbers[0])
+                    output_diff_rate_per_seed.append(rate)
+                    sum_output_diff[i] += rate
 
             encode_time.append(encode_time_per_seed)
             decode_time.append(decode_time_per_seed)
+            all_time.append(all_time_per_seed)
+            reds_size.append(reds_size_per_seed)
             decoded_acc.append(decoded_acc_per_seed)
             decoded_loss.append(decoded_loss_per_seed)
-            output_diff_before_after.append(output_diff_before_after_per_seed)
-            output_diff_before_decoded_inside.append(output_diff_before_decoded_inside_per_seed)
-            output_diff_before_decoded_outside.append(output_diff_before_decoded_outside_per_seed)
             before_acc.append(before_acc_per_seed)
             before_loss.append(before_loss_per_seed)
             after_acc.append(after_acc_per_seed)
             after_loss.append(after_loss_per_seed)
+            output_diff_before_after.append(output_diff_before_after_per_seed)
+            output_diff_before_decoded_inside.append(output_diff_before_decoded_inside_per_seed)
+            output_diff_before_decoded_outside.append(output_diff_before_decoded_outside_per_seed)
+            output_diff_before_decoded_all.append(output_diff_before_decoded_all_per_seed)
+            output_diff_rate.append(output_diff_rate_per_seed)
 
-        writer.writerows(encode_time + decode_time + decoded_acc + decoded_loss)
-        writer.writerow([])
-        writer.writerows(output_diff_before_after + output_diff_before_decoded_inside + output_diff_before_decoded_outside)
-        writer.writerow([])
-        writer.writerows(before_acc + before_loss + after_acc + after_loss)
+        for i in range(len(candidates)):
+            average_time.append(sum_all_time[i] / len(seeds))
+            average_size.append(sum_reds_size[i] / len(seeds))
+            average_decoded_loss.append(sum_decoded_loss[i] / len(seeds))
+            average_before_loss.append(sum_before_loss[i] / len(seeds))
+            average_after_loss.append(sum_after_loss[i] / len(seeds))
+            average_output_diff.append(sum_output_diff[i] / len(seeds))
+        
+        writer.writerows(encode_time + decode_time + all_time)
+        writer.writerow(average_time + [])
+        writer.writerows(reds_size)
+        writer.writerow(average_size + [])
+        writer.writerows(decoded_acc + decoded_loss)
+        writer.writerow(average_decoded_loss + [])
+        writer.writerows(before_acc + before_loss)
+        writer.writerow(average_before_loss + [])
+        writer.writerows(after_acc + after_loss)
+        writer.writerow(average_after_loss + [])
+        writer.writerows(output_diff_before_after)
+        writer.writerows(output_diff_before_decoded_inside + output_diff_before_decoded_outside)
+        writer.writerows(output_diff_before_decoded_all + output_diff_rate)
+        writer.writerow(average_output_diff + [])
 
-
-    with open(f"{save_dir}/{target_param}{'-'.join(candidates)}_acc.txt", "w") as f:
+    with open(f"{save_dir}/{target_param}{'-'.join(candidates)}_acc.csv", "w") as f:
         writer = csv.writer(f)
         writer.writerow(['', "hamming distance"] + candidates)
         writer.writerow([])
@@ -102,7 +174,7 @@ def create_summary_files(args, target_param, candidates, seeds, save_dir):
         for seed in seeds:
             block_acc_per_seed = []
             symbol_acc_per_seed = []
-            load_parent_dir = f"{'/'.join(save_dir.split('/')[:-1])}/{seed}"
+            load_parent_dir = f"{'/'.join(save_dir.split('/')[:3])}/{seed}"
 
             for c in candidates:
                 block_acc_per_candi = {}
@@ -110,6 +182,7 @@ def create_summary_files(args, target_param, candidates, seeds, save_dir):
                 load_dir = f"{load_parent_dir}/{get_load_dir_name(args, target_param, c)}"
 
                 with open(f"{load_dir}/acc{args.after}.log", "r") as log_file:
+                    print(f"opend {load_dir}/acc{args.after}.log")
                     for line in log_file:
                         # Use regular expressions to extract the necessary information
                         match = re.search(r"\[(\d+)\]\s+Block acc:\s+.+=(\d+\.\d+[eE]?[-+]?[0-9]*)\s+Symbol acc:\s+.+=(\d+\.\d+[eE]?[-+]?[0-9]*)", line)
@@ -153,9 +226,11 @@ def main():
     torch_fix_seed(args.seed)
     device = torch.device(args.device)
 
-    seeds = [1]
-    target_param = "t"
-    candidates = ["5", "6", "7", "8"]
+    seeds = [1, 2, 3, 4]
+    column_param = "t"
+    column_candis = ["5", "6", "7", "8"]
+    row_param = "target_ratio"
+    row_candis = ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
 
     if args.over_fitting:
         mode = "over-fitting"
@@ -166,13 +241,32 @@ def main():
     else:
         raise NotImplementedError
 
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}"
-    os.makedirs(save_dir, exist_ok=True)
+    for p in row_candis:
+        setattr(args, row_param, p)
+        if args.random_target:
+            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/random/{row_param}{p}"
+        else:
+            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/re/{row_param}{p}"
+        os.makedirs(save_dir, exist_ok=True)
 
-    logging = get_logger(f"{save_dir}/{target_param}{'-'.join(candidates)}.log")
-    logging_args(args, logging)
+        logging = get_logger(f"{save_dir}/{column_param}{'-'.join(column_candis)}.log")
+        logging_args(args, logging)
+        
+        create_summary_files(args, column_param, column_candis, seeds, save_dir)
 
-    create_summary_files(args, target_param, candidates, seeds, save_dir)
+    for p in column_candis:
+        setattr(args, column_param, p)
+        if args.random_target:
+            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/random/{column_param}{p}"
+        else:
+            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/re/{column_param}{p}"
+        os.makedirs(save_dir, exist_ok=True)
+
+        logging = get_logger(f"{save_dir}/{row_param}{'-'.join(row_candis)}.log")
+        logging_args(args, logging)
+
+        create_summary_files(args, row_param, row_candis, seeds, save_dir)
+
 
     
 if __name__ == '__main__':

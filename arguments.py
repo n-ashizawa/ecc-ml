@@ -17,7 +17,7 @@ def get_args():
     parser.add_argument("--label-flipping", type=float, default=0.0)
     parser.add_argument("--over-fitting", action="store_true", default=False)
     # ecc
-    parser.add_argument("--ecc", type=str, default="turbo", choices=["turbo", "rs", "bch"])
+    parser.add_argument("--ecc", type=str, default="rs", choices=["turbo", "rs", "bch"])
     parser.add_argument("--mode", type=str, default="encode", 
         choices=["encode", "decode", "acc", "output", "ecc", "clean", "poisoned"])
     parser.add_argument("--fixed", action="store_true", default=False)
@@ -28,6 +28,7 @@ def get_args():
     parser.add_argument("--t", type=int, default=16)
     # prune
     parser.add_argument("--target-ratio", type=check_range_ratio, default=1.0)
+    parser.add_argument("--random-target", action="store_true", default=False)
     args = parser.parse_args()
     return args
 

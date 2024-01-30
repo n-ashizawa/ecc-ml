@@ -1,3 +1,4 @@
+# https://github.com/jacobgil/pytorch-pruning
 import torch
 from torch.autograd import Variable
 from heapq import nlargest
@@ -173,7 +174,7 @@ def main():
     
     model_before = load_model(args, f"{load_dir}/{args.before}", device)
 
-    target_ratio = [0.1, 0.2, 0.3]
+    target_ratio = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
     logging = get_logger(f"{save_dir}/prune{target_ratio[0]}-{target_ratio[-1]}({len(target_ratio)}).log")
     logging_args(args, logging)

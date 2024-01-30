@@ -222,7 +222,10 @@ def main():
         raise NotImplementedError
 
     load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.target_ratio}/{args.t}"
+    if args.random_target:
+        save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.target_ratio}/{args.t}/random"
+    else:
+        save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.target_ratio}/{args.t}/re"
     os.makedirs(save_dir, exist_ok=True)
     
     if args.ecc == "turbo":
@@ -235,26 +238,32 @@ def main():
         raise NotImplementedError
 
     if args.mode == "encode":
-        logging = get_logger(f"{save_dir}/{args.mode}.log")
-        logging_args(args, logging)
-        model = load_model(args, f"{load_dir}/{args.before}", device)
-        start_time = time.time()
-        encode_before(args, model, ECC, save_dir, logging)
-        end_time = time.time()
+        save_data_file = f"{save_dir}/encoded.pt"
+        if not os.path.isfile(save_data_file):
+            logging = get_logger(f"{save_dir}/{args.mode}.log")
+            logging_args(args, logging)
+            model = load_model(args, f"{load_dir}/{args.before}", device)
+            start_time = time.time()
+            encode_before(args, model, ECC, save_dir, logging)
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            logging.info(f"time cost: {elapsed_time} seconds")
+            del model
     elif args.mode == "decode":
-        logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
-        logging_args(args, logging)
-        model = load_model(args, f"{load_dir}/{args.after}", device)
-        start_time = time.time()
-        decode_after(args, model, ECC, save_dir, logging)
-        end_time = time.time()
+        save_data_file = f"{save_dir}/decoded{args.after}.pt"
+        if not os.path.isfile(save_data_file):
+            logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
+            logging_args(args, logging)
+            model = load_model(args, f"{load_dir}/{args.after}", device)
+            start_time = time.time()
+            decode_after(args, model, ECC, save_dir, logging)
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            logging.info(f"time cost: {elapsed_time} seconds")
+            del model
     else:
         raise NotImplementedError
     
-    elapsed_time = end_time - start_time
-    logging.info(f"time cost: {elapsed_time} seconds")
-
-    del model
     exit()
 
 
