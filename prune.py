@@ -142,13 +142,12 @@ def get_candidates_to_correct(model, train_loader, num_filters_to_correct, devic
         
         
 def prune(args, model, device, save_dir, logging):
-    correcting_rate = 1 - args.prune_ratio
-    save_data_file = f"{save_dir}/targets{correcting_rate}.npy"
+    save_data_file = f"{save_dir}/targets{args.target_ratio}.npy"
     train_loader, test_loader = prepare_dataset(args)
     
     number_of_filters = total_num_filters(model)
-    num_filters_to_correct = int(number_of_filters * correcting_rate)
-    logging.info(f"Number of parameters to correct {correcting_rate*100}% filters: {num_filters_to_correct}")
+    num_filters_to_correct = int(number_of_filters * args.target_ratio)
+    logging.info(f"Number of parameters to correct {args.target_ratio*100}% filters: {num_filters_to_correct}")
 
     targets = get_candidates_to_correct(model, train_loader, num_filters_to_correct, device)
     np.save(save_data_file, targets)
@@ -169,19 +168,18 @@ def main():
         raise NotImplementedError
 
     load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/model/prune"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/prune"
     os.makedirs(save_dir, exist_ok=True)
     
     model_before = load_model(args, f"{load_dir}/{args.before}", device)
 
-    prune_ratio = [0.1, 0.2, 0.3, 0.4, 0.5, 
-                   0.6, 0.7, 0.8, 0.9]
+    target_ratio = [0.1, 0.2, 0.3]
 
-    logging = get_logger(f"{save_dir}/prune{prune_ratio[0]}-{prune_ratio[-1]}({len(prune_ratio)}).log")
+    logging = get_logger(f"{save_dir}/prune{target_ratio[0]}-{target_ratio[-1]}({len(target_ratio)}).log")
     logging_args(args, logging)
 
-    for p in prune_ratio:
-        args.prune_ratio = p
+    for t in target_ratio:
+        args.target_ratio = t
         prune(args, model_before, device, save_dir, logging)
     exit()
 

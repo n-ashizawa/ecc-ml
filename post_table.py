@@ -8,10 +8,10 @@ from logger import get_logger, logging_args
 
 def get_load_dir_name(args, taget_param, candidate):
     params = {"before": args.before, "fixed": args.fixed, "msg_len": args.msg_len, 
-        "ecc": args.ecc, "prune_ratio": args.prune_ratio, "t": args.t}
+        "ecc": args.ecc, "target_ratio": args.target_ratio, "t": args.t}
 
     params[taget_param] = candidate
-    load_dir = f"{params['before']}/model/{params['fixed']}/False/False/{params['msg_len']}/{params['ecc']}/1/{params['prune_ratio']}/{params['t']}"
+    load_dir = f"{params['before']}/{params['fixed']}/False/False/{params['msg_len']}/{params['ecc']}/1/{params['target_ratio']}/{params['t']}"
     return load_dir
 
 

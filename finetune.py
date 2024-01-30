@@ -27,17 +27,17 @@ def main():
     
     if args.mode == "clean":
         start_epoch = args.before
-        load_model_file = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model/{args.before}"
+        load_model_file = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/{args.before}"
     elif args.mode == "poisoned":
         start_epoch = args.after
-        load_model_file = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model/{args.after}"
+        load_model_file = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/{args.after}"
     elif args.mode == "ecc":
         start_epoch = args.before
-        load_model_file = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/model/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.prune_ratio}/{args.t}/decoded{args.after}"
+        load_model_file = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.prune_ratio}/{args.t}/decoded{args.after}"
     else:
         raise NotImplementedError
     
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/model/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.prune_ratio}/{args.t}/finetune/{args.mode}"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.prune_ratio}/{args.t}/finetune/{args.mode}"
     os.makedirs(save_dir, exist_ok=True)
     #save_model_dir = f"{save_dir}/model"
     #os.makedirs(save_model_dir, exist_ok=True)

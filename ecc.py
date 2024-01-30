@@ -20,7 +20,7 @@ def encode_before(args, model_before, ECC, save_dir, logging):
     state_dict_encoded = model_encoded.state_dict()
     all_reds1 = []
     all_reds2 = []
-    if args.prune_ratio > 0:
+    if args.target_ratio < 1.0:
         correct_targets_name = get_name_from_correct_targets(args, model_before, save_dir)
         modules_before = {name: module for name, module in model_before.named_modules()}
         weight_ids = None
@@ -43,14 +43,14 @@ def encode_before(args, model_before, ECC, save_dir, logging):
         params = []
         sum_params = 0
 
-        if args.prune_ratio > 0:
+        if args.target_ratio < 1.0:
             layer = '.'.join(name.split('.')[:-1])
             is_weight = (name.split('.')[-1] == "weight")
             is_conv = layer in correct_targets_name   # conv
             is_linear = layer in modules_before and isinstance(modules_before[layer], torch.nn.Linear)   # linear
             
         for ids, value in enumerate(param.view(-1)):
-            if args.prune_ratio > 0:
+            if args.target_ratio < 1.0:
                 original_index = np.unravel_index(ids, param.shape)
                 if is_conv or is_linear:   # conv or linear
                     if is_weight and weight_ids is not None:   # weight
@@ -124,7 +124,7 @@ def decode_after(args, model_after, ECC, save_dir, logging):
     all_reds2 = get_intlist_from_strlist(all_reds2_str)
     logging.info("all no.2 redundants are loaded")
 
-    if args.prune_ratio > 0:
+    if args.target_ratio < 1.0:
         correct_targets_name = get_name_from_correct_targets(args, model_after, save_dir)
         modules_after = {name: module for name, module in model_after.named_modules()}
         weight_ids = None
@@ -146,7 +146,7 @@ def decode_after(args, model_after, ECC, save_dir, logging):
         params = []
         sum_params = 0
 
-        if args.prune_ratio > 0:
+        if args.target_ratio < 1.0:
             layer = '.'.join(name.split('.')[:-1])
             is_weight = (name.split('.')[-1] == "weight")
             is_conv = layer in correct_targets_name   # conv
@@ -154,7 +154,7 @@ def decode_after(args, model_after, ECC, save_dir, logging):
             
         j = 0
         for ids, value in enumerate(param.view(-1)):
-            if args.prune_ratio > 0:
+            if args.target_ratio < 1.0:
                 original_index = np.unravel_index(ids, param.shape)
                 if is_conv or is_linear:   # conv or linear
                     if is_weight and weight_ids is not None:   # weight
@@ -222,7 +222,7 @@ def main():
         raise NotImplementedError
 
     load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/model/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{1.0-args.prune_ratio}/{args.t}"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.target_ratio}/{args.t}"
     os.makedirs(save_dir, exist_ok=True)
     
     if args.ecc == "turbo":

@@ -336,7 +336,7 @@ def get_params_info(args, model, save_dir):
     state_dict = model.state_dict()
     params = {"p_m":[], "s_m":[], "b_m":[]}
 
-    if args.prune_ratio > 0:
+    if args.target_ratio < 1.0:
         correct_targets_name = get_name_from_correct_targets(args, model, save_dir)
         modules = {name: module for name, module in model.named_modules()}
         weight_ids = None
@@ -354,14 +354,14 @@ def get_params_info(args, model, save_dir):
 
         param = state_dict[name]
 
-        if args.prune_ratio > 0:
+        if args.target_ratio < 1.0:
             layer = '.'.join(name.split('.')[:-1])
             is_weight = (name.split('.')[-1] == "weight")
             is_conv = layer in correct_targets_name   # conv
             is_linear = layer in modules and isinstance(modules[layer], torch.nn.Linear)   # linear
                
         for ids, value in enumerate(param.view(-1)):
-            if args.prune_ratio > 0:
+            if args.target_ratio < 1.0:
                 original_index = np.unravel_index(ids, param.shape)
                 if is_conv or is_linear:   # conv or linear
                     if is_weight and weight_ids is not None:   # weight
@@ -453,12 +453,12 @@ def to_frac_from_fixed_bin(w_strings):
 
 
 def get_name_from_correct_targets(args, model, save_dir):
-    save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune/targets{1-args.prune_ratio}.npy"
+    save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune/targets{args.target_ratio}.npy"
     targets = np.load(save_data_file)
     get_forward_steps = model.get_forward_steps()
 
     correct_targets_name = {}
-    for layer, weight_id in correct_targets:
+    for layer, weight_id in targets:
         target_module = get_forward_steps[layer]
         for name, module in model.named_modules():
             if id(module) == id(target_module):

@@ -24,16 +24,25 @@ def get_args():
     parser.add_argument("--last-layer", action="store_true", default=False)
     parser.add_argument("--weight-only", action="store_true", default=False)
     parser.add_argument("--sum-params", type=int, default=1)
-    parser.add_argument("--msg-len", type=check_max_value, default=32)
+    parser.add_argument("--msg-len", type=check_max_length, default=32)
     parser.add_argument("--t", type=int, default=16)
     # prune
-    parser.add_argument("--prune-ratio", type=float, default=0.0)
+    parser.add_argument("--target-ratio", type=check_range_ratio, default=1.0)
     args = parser.parse_args()
     return args
 
 
-def check_max_value(value):
+def check_max_length(value):
     ivalue = int(value)
     if ivalue > 32:
         raise argparse.ArgumentTypeError("Maximum value for msg_len is 32")
     return ivalue
+
+
+def check_range_ratio(value):
+    fvalue = float(value)
+    if fvalue > 1.0:
+        raise argparse.ArgumentTypeError("Maximum value for target_ratio is 1.0")
+    if fvalue < 0.0:
+        raise argparse.ArgumentTypeError("Minimum value for target_ratio is 0.0")
+    return fvalue

@@ -55,7 +55,7 @@ def main():
     model_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}"
     logging = get_logger(f"{model_dir}/quantized/{args.quantized}.log")
     logging_args(args, logging)
-    model = load_model(args, f"{model_dir}/model/{args.quantized}", device)
+    model = load_model(args, f"{model_dir}/{args.quantized}", device)
     model.eval()
 
     _, test_loader = prepare_dataset(args)
