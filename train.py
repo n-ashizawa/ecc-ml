@@ -23,7 +23,7 @@ def main():
     else:
         raise NotImplementedError
     
-    save_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}"
+    save_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}"
     os.makedirs(save_dir, exist_ok=True)
     save_model_dir = f"{save_dir}/model"
     os.makedirs(save_model_dir, exist_ok=True)

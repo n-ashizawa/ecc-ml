@@ -57,7 +57,7 @@ def calc_acc(args, model_before, model_after, model_decoded, save_dir, logging):
     success = {"block":block_success, "symbol":symbol_success}
     
     # plot all
-    with open(f"{save_dir}/acc{args.after}.txt", "w", newline="") as f:
+    with open(f"{save_dir}/{args.mode}{args.after}.txt", "w", newline="") as f:
         writer = csv.writer(f)
         header = np.concatenate([list(params_info.keys()), list(distance_info.keys()), list(success.keys())])
         writer.writerow(header)
@@ -90,7 +90,7 @@ def check_output(args, model_before, model_after, model_decoded, device, save_di
     model_decoded.eval()
     _, test_loader = prepare_dataset(args)
 
-    save_data_file = "/".join(save_dir.split("/")[:5]) + f"/diff{args.after}.npz"
+    save_data_file = "/".join(save_dir.split("/")[:4]) + f"{args.seed}_diff{args.after}.npz"
     if not os.path.isfile(save_data_file):
         indice, outputs = save_output_dist(model_before, model_after, test_loader, device)
         np.savez(save_data_file, indice=indice, outputs=outputs)
@@ -105,7 +105,7 @@ def check_output(args, model_before, model_after, model_decoded, device, save_di
     logging.info(f"After\tacc: {after_acc},\tloss: {after_loss}")
     logging.info(f"Decoded\tacc: {decoded_acc},\tloss: {decoded_loss}")
 
-    with open(f"{save_dir}/output{args.after}.txt", "w", newline="") as f:
+    with open(f"{save_dir}/{args.mode}{args.after}.txt", "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([len(dist_data["indice"]), "->", len(fail), len(deterioration)])
         writer.writerow(["after", "decoded", "before"])
@@ -188,33 +188,24 @@ def main():
     else:
         raise NotImplementedError
 
-    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    if args.random_target:
-        save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.target_ratio}/{args.t}/random"
-    else:
-        save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.target_ratio}/{args.t}"
+    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model"
+    save_dir = make_savedir(args)
 
-    if args.mode == "acc":
-        device = torch.device("cpu")
-        save_data_file = f"{save_dir}/acc{args.after}.txt"
-        if not os.path.isfile(save_data_file):
-            logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
-            logging_args(args, logging)
-            model_before = load_model(args, f"{load_dir}/{args.before}", device)
-            model_after = load_model(args, f"{load_dir}/{args.after}", device)
-            model_decoded = load_model(args, f"{save_dir}/decoded{args.after}", device)
+    save_data_file = f"{save_dir}/{args.mode}{args.after}.txt"
+    if not os.path.isfile(save_data_file):
+        logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
+        logging_args(args, logging)
+        model_before = load_model(args, f"{load_dir}/{args.before}", device)
+        model_after = load_model(args, f"{load_dir}/{args.after}", device)
+        model_decoded = load_model(args, f"{save_dir}/decoded{args.after}", device)
+    
+        if args.mode == "acc":
+            device = torch.device("cpu")
             calc_acc(args, model_before, model_after, model_decoded, save_dir, logging)
-    elif args.mode == "output":
-        save_data_file = f"{save_dir}/output{args.after}.txt"
-        if not os.path.isfile(save_data_file):
-            logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
-            logging_args(args, logging)
-            model_before = load_model(args, f"{load_dir}/{args.before}", device)
-            model_after = load_model(args, f"{load_dir}/{args.after}", device)
-            model_decoded = load_model(args, f"{save_dir}/decoded{args.after}", device)
+        elif args.mode == "output":
             check_output(args, model_before, model_after, model_decoded, device, save_dir, logging)
-    else:
-        raise NotImplementedError
+        else:
+            raise NotImplementedError
     
     
     exit()

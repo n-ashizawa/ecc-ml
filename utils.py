@@ -15,7 +15,6 @@ from torch.utils.data import DataLoader, TensorDataset
 from torchvision import datasets, transforms
 
 from network import *
-from quantize import QuantizedModel, fuse_resnet18
 
 
 def torch_fix_seed(seed=42):
@@ -453,11 +452,27 @@ def to_frac_from_fixed_bin(w_strings):
     return float(dec)
 
 
-def get_name_from_correct_targets(args, model, save_dir):
-    if args.random_target:
-        save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune/random_targets{args.target_ratio}.npy"
+def make_savedir(args):
+    if args.over_fitting:
+        mode = "over-fitting"
+    elif args.label_flipping > 0:
+        mode = "label-flipping"
+    elif args.label_flipping == 0:
+        mode = "normal"
     else:
-        save_data_file = "/".join(save_dir.split("/")[:5]) + f"/prune/targets{args.target_ratio}.npy"
+        raise NotImplementedError
+
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.pretrained}/{args.before}"\
+        f"/{'random' if args.random_target else 'prune'}/{args.target_ratio}"\
+            f"/{args.msg_len}times{args.sum_params}/{args.fixed}/{args.ecc}/{args.t}"\
+                f"/{args.seed}"
+    os.makedirs(save_dir, exist_ok=True)
+
+    return save_dir
+
+
+def get_name_from_correct_targets(args, model, save_dir):
+    save_data_file = f"{'/'.join(make_savedir(args).split('/')[:6])}/targets.npy"
     targets = np.load(save_data_file)
     get_forward_steps = model.get_forward_steps()
 

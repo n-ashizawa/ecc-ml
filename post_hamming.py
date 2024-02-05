@@ -8,7 +8,7 @@ from logger import get_logger, logging_args
 
 def count_hamming(args, seeds, target_ratios, save_dir):
     # Create a new file for this target_param value
-    with open(f"{save_dir}/hamming{target_ratios[0]}-{target_ratios[-1]}({len(target_ratios)}).csv", "w") as f:
+    with open(f"{save_dir}/hamming.csv", "w") as f:
         writer = csv.writer(f)
         writer.writerow(['', "target_ratio", "seed"] + [i for i in range(args.msg_len+1)])
         writer.writerow([])
@@ -18,6 +18,7 @@ def count_hamming(args, seeds, target_ratios, save_dir):
         
         for target_ratio in target_ratios:
             args.target_ratio = target_ratio
+
             block_hamming_per_ratio = [['', target_ratio]]
             average_block_hamming = ['', '', "ave."]
             sum_block_hamming = [0]*(args.msg_len+1)
@@ -26,14 +27,12 @@ def count_hamming(args, seeds, target_ratios, save_dir):
             sum_symbol_hamming = [0]*(args.msg_len+1)
     
             for seed in seeds:
-                load_parent_dir = f"{'/'.join(save_dir.split('/')[:3])}/{seed}"
+                load_dir = f"{'/'.join(save_dir.split('/')[:5])}\
+                    /{args.target_ratio}\
+                        /{args.msg_len}times{args.sum_params}/{args.fixed}/{args.ecc}/{args.t}\
+                            /{args.seed}"
                 block_hamming_per_seed = ['', '', seed] + ['']*(args.msg_len+1)
                 symbol_hamming_per_seed = ['', '', seed] + ['']*(args.msg_len+1)
-
-                if args.random_target:
-                    load_dir = f"{load_parent_dir}/{args.before}/{args.fixed}/False/False/{args.msg_len}/{args.ecc}/1/{args.target_ratio}/8/random"
-                else:
-                    load_dir = f"{load_parent_dir}/{args.before}/{args.fixed}/False/False/{args.msg_len}/{args.ecc}/1/{args.target_ratio}/8"
 
                 with open(f"{load_dir}/acc{args.after}.log", "r") as log_file:
                     print(f"opened {load_dir}/acc{args.after}.log")
@@ -87,13 +86,9 @@ def main():
     else:
         raise NotImplementedError
 
-    if args.random_target:
-        save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/random/"
-    else:
-        save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/"
-    os.makedirs(save_dir, exist_ok=True)
-
-    logging = get_logger(f"{save_dir}/hamming{target_ratios[0]}-{target_ratios[-1]}({len(target_ratios)}).log")
+    save_dir = f"{'/'.join(make_savedir(args).split('/')[:5])}/table{args.after}"
+    
+    logging = get_logger(f"{save_dir}/hamming.log")
     logging_args(args, logging)
     
     count_hamming(args, seeds, target_ratios, save_dir)

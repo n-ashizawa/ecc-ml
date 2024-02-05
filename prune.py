@@ -71,6 +71,30 @@ class FilterPrunner:
         self.filter_ranks[activation_index] += taylor
         self.grad_index += 1
 
+    def random_ranking_filters(self, num):
+        self.activation_to_layer = {}
+        activation_index = 0
+        get_forward_steps = self.model.get_forward_steps()
+        
+        for layer, module in enumerate(get_forward_steps):
+            if isinstance(module, torch.nn.modules.conv.Conv2d):
+                if activation_index not in self.filter_ranks:
+                    self.filter_ranks[activation_index] = module.weight.size(0)
+                self.activation_to_layer[activation_index] = layer
+                activation_index += 1
+
+        data = []
+        for i in range(len(self.activation_to_layer)):
+            for j in range(self.filter_ranks[i]):
+                data.append((self.activation_to_layer[i], j))
+        
+        if num > len(data):
+            raise ValueError(f"num({num}) > len(data)({len(data)})")
+        random_data = random.sample(data, num)
+
+        return random_data 
+
+
     def highest_ranking_filters(self, num):
         data = []
         for i in sorted(self.filter_ranks.keys()):
@@ -86,7 +110,10 @@ class FilterPrunner:
             self.filter_ranks[i] = v.cpu()
 
     def get_pruning_plan(self, num_filters_to_correct):
-        filters_to_correct = self.highest_ranking_filters(num_filters_to_correct)
+        if args.random_target:
+            filters_to_correct = self.random_ranking_filters(num_filters_to_correct)
+        else:
+            filters_to_correct = self.highest_ranking_filters(num_filters_to_correct)
 
         # After each of the k filters are prunned,
         # the filter index of the next filters change since the model is smaller.
@@ -137,13 +164,14 @@ def train_epoch(model, prunner, train_loader, device, optimizer=None, rank_filte
 def get_candidates_to_correct(model, train_loader, num_filters_to_correct, device):
     prunner = FilterPrunner(model, device) 
     prunner.reset()
-    train_epoch(model, prunner, train_loader, device, rank_filters=True)
-    prunner.normalize_ranks_per_layer()
+    if not args.random_target:
+        train_epoch(model, prunner, train_loader, device, rank_filters=True)
+        prunner.normalize_ranks_per_layer()
     return prunner.get_pruning_plan(num_filters_to_correct)
         
         
 def prune(args, model, device, save_dir, logging):
-    save_data_file = f"{save_dir}/targets{args.target_ratio}.npy"
+    save_data_file = f"{save_dir}/targets.npy"
     train_loader, test_loader = prepare_dataset(args)
     
     number_of_filters = total_num_filters(model)
@@ -168,20 +196,20 @@ def main():
     else:
         raise NotImplementedError
 
-    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/prune"
-    os.makedirs(save_dir, exist_ok=True)
-    
+    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model"
     model_before = load_model(args, f"{load_dir}/{args.before}", device)
 
     target_ratio = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
-    logging = get_logger(f"{save_dir}/prune{target_ratio[0]}-{target_ratio[-1]}({len(target_ratio)}).log")
-    logging_args(args, logging)
-
     for t in target_ratio:
         args.target_ratio = t
+
+        save_dir = f"{'/'.join(make_savedir(args).split('/')[:6])}"
+        logging = get_logger(f"{save_dir}/targets.log")
+        logging_args(args, logging)
+    
         prune(args, model_before, device, save_dir, logging)
+    
     exit()
 
 
