@@ -221,12 +221,8 @@ def main():
     else:
         raise NotImplementedError
 
-    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}/model"
-    if args.random_target:
-        save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.target_ratio}/{args.t}/random"
-    else:
-        save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/{args.seed}/{args.before}/{args.fixed}/{args.last_layer}/{args.weight_only}/{args.msg_len}/{args.ecc}/{args.sum_params}/{args.target_ratio}/{args.t}"
-    os.makedirs(save_dir, exist_ok=True)
+    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model"
+    save_dir = make_savedir(args)
     
     if args.ecc == "turbo":
         ECC = turbo_code.TurboCode(args)

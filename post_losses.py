@@ -20,7 +20,7 @@ def summarize_loss(args, seeds, save_dir):
     else:
         raise NotImplementedError
 
-    with open(f"{save_dir}/{mode}{args.pretrained}.csv", "w") as f:
+    with open(f"{save_dir}/losses.csv", "w") as f:
         writer = csv.writer(f)
         writer.writerow(['', "seed"] + [i for i in range(1, args.epoch+1)])
         writer.writerow([])
@@ -29,7 +29,7 @@ def summarize_loss(args, seeds, save_dir):
         test_losses = [["test losses"]]
         
         for seed in seeds:
-            load_dir = f"{save_dir}/{seed}/{mode}/{args.pretrained}"
+            load_dir = f"{save_dir}/{seed}"
             
             with open(f"{load_dir}/loss.csv", "r") as loss_file:
                 print(f"opend {load_dir}/loss.csv")
@@ -60,7 +60,7 @@ def main():
     else:
         raise NotImplementedError
 
-    save_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}"
+    save_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}"
     summarize_loss(args, seeds, save_dir)
 
     exit()

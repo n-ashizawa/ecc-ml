@@ -21,8 +21,6 @@ def get_args():
     parser.add_argument("--mode", type=str, default="encode", 
         choices=["encode", "decode", "acc", "output", "ecc", "clean", "poisoned"])
     parser.add_argument("--fixed", action="store_true", default=False)
-    parser.add_argument("--last-layer", action="store_true", default=False)
-    parser.add_argument("--weight-only", action="store_true", default=False)
     parser.add_argument("--sum-params", type=int, default=1)
     parser.add_argument("--msg-len", type=check_max_length, default=32)
     parser.add_argument("--t", type=int, default=16)

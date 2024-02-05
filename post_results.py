@@ -6,21 +6,9 @@ from arguments import get_args
 from logger import get_logger, logging_args
 
 
-def get_load_dir_name(args, taget_param, candidate):
-    params = {"before": args.before, "fixed": args.fixed, "msg_len": args.msg_len, 
-        "ecc": args.ecc, "target_ratio": args.target_ratio, "t": args.t}
-
-    params[taget_param] = candidate
-    if args.random_target:
-        load_dir = f"{params['before']}/{params['fixed']}/False/False/{params['msg_len']}/{params['ecc']}/1/{params['target_ratio']}/{params['t']}/random"
-    else:
-        load_dir = f"{params['before']}/{params['fixed']}/False/False/{params['msg_len']}/{params['ecc']}/1/{params['target_ratio']}/{params['t']}"
-    return load_dir
-
-
 def create_summary_files(args, target_param, candidates, seeds, save_dir):
-    # Create a new file for this target_param value
-    with open(f"{save_dir}/{target_param}{'-'.join(candidates)}.csv", "w") as f:
+
+    with open(f"{save_dir}/{target_param}.csv", "w") as f:
         writer = csv.writer(f)
         writer.writerow(['', "seed"] + candidates)
         writer.writerow([])
@@ -52,10 +40,10 @@ def create_summary_files(args, target_param, candidates, seeds, save_dir):
         output_diff_rate = [["output diff (rate)"]]
         average_output_diff = ['', "ave."]
         sum_output_diff = [0]*len(candidates)
-        
     
         for seed in seeds:
-            load_parent_dir = f"{'/'.join(save_dir.split('/')[:3])}/{seed}"
+            args.seed = seed
+
             encode_time_per_seed = ['', seed]
             decode_time_per_seed = ['', seed]
             all_time_per_seed = ['', seed]
@@ -73,7 +61,8 @@ def create_summary_files(args, target_param, candidates, seeds, save_dir):
             output_diff_rate_per_seed = ['', seed]
 
             for i, c in enumerate(candidates):
-                load_dir = f"{load_parent_dir}/{get_load_dir_name(args, target_param, c)}"
+                setattr(args, target_param, c)
+                load_dir = make_savedir(args)
         
                 with open(f"{load_dir}/encode.log", "r") as log_file:
                     print(f"opend {load_dir}/encode.log")
@@ -166,20 +155,23 @@ def create_summary_files(args, target_param, candidates, seeds, save_dir):
         writer.writerows(output_diff_before_decoded_all + output_diff_rate)
         writer.writerow(average_output_diff + [])
 
-    with open(f"{save_dir}/{target_param}{'-'.join(candidates)}_acc.csv", "w") as f:
+    with open(f"{save_dir}/{target_param}_acc.csv", "w") as f:
         writer = csv.writer(f)
         writer.writerow(['', "hamming distance"] + candidates)
         writer.writerow([])
         
         for seed in seeds:
+            args.seed = seed
+
             block_acc_per_seed = []
             symbol_acc_per_seed = []
-            load_parent_dir = f"{'/'.join(save_dir.split('/')[:3])}/{seed}"
-
+            
             for c in candidates:
+                setattr(args, target_param, c)
+                load_dir = make_savedir(args)
+                
                 block_acc_per_candi = {}
                 symbol_acc_per_candi = {}
-                load_dir = f"{load_parent_dir}/{get_load_dir_name(args, target_param, c)}"
 
                 with open(f"{load_dir}/acc{args.after}.log", "r") as log_file:
                     print(f"opend {load_dir}/acc{args.after}.log")
@@ -227,11 +219,9 @@ def main():
     device = torch.device(args.device)
 
     seeds = [1, 2, 3, 4]
-    column_param = "t"
-    column_candis = ["5", "6", "7", "8"]
-    row_param = "target_ratio"
-    row_candis = ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
-
+    target_param = "t"
+    param_candis = ["5", "6", "7", "8"]
+    
     if args.over_fitting:
         mode = "over-fitting"
     elif args.label_flipping > 0:
@@ -240,33 +230,14 @@ def main():
         mode = "normal"
     else:
         raise NotImplementedError
-
-    for p in row_candis:
-        setattr(args, row_param, p)
-        if args.random_target:
-            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/random/{row_param}{p}"
-        else:
-            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/{row_param}{p}"
-        os.makedirs(save_dir, exist_ok=True)
-
-        logging = get_logger(f"{save_dir}/{column_param}{'-'.join(column_candis)}.log")
-        logging_args(args, logging)
         
-        create_summary_files(args, column_param, column_candis, seeds, save_dir)
+    save_dir = f"{'/'.join(make_savedir(args).split('/')[:4])}/table{args.after}"
+    os.makedirs(save_dir, exist_ok=True)
 
-    for p in column_candis:
-        setattr(args, column_param, p)
-        if args.random_target:
-            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/random/{column_param}{p}"
-        else:
-            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/{column_param}{p}"
-        os.makedirs(save_dir, exist_ok=True)
-
-        logging = get_logger(f"{save_dir}/{row_param}{'-'.join(row_candis)}.log")
-        logging_args(args, logging)
-
-        create_summary_files(args, row_param, row_candis, seeds, save_dir)
-
+    logging = get_logger(f"{save_dir}/{target_param}.log")
+    logging_args(args, logging)
+    
+    create_summary_files(args, target_param, param_candis, seeds, save_dir)
 
     
 if __name__ == '__main__':
