@@ -472,7 +472,7 @@ def make_savedir(args):
 
 
 def get_name_from_correct_targets(args, model, save_dir):
-    save_data_file = f"{'/'.join(make_savedir(args).split('/')[:6])}/targets.npy"
+    save_data_file = f"{'/'.join(make_savedir(args).split('/')[:6])}/{args.seed}_targets.npy"
     targets = np.load(save_data_file)
     get_forward_steps = model.get_forward_steps()
 

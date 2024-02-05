@@ -171,7 +171,7 @@ def get_candidates_to_correct(model, train_loader, num_filters_to_correct, devic
         
         
 def prune(args, model, device, save_dir, logging):
-    save_data_file = f"{save_dir}/targets.npy"
+    save_data_file = f"{save_dir}/{args.seed}_targets.npy"
     train_loader, test_loader = prepare_dataset(args)
     
     number_of_filters = total_num_filters(model)
@@ -205,7 +205,7 @@ def main():
         args.target_ratio = t
 
         save_dir = f"{'/'.join(make_savedir(args).split('/')[:6])}"
-        logging = get_logger(f"{save_dir}/targets.log")
+        logging = get_logger(f"{save_dir}/{args.seed}_targets.log")
         logging_args(args, logging)
     
         prune(args, model_before, device, save_dir, logging)
