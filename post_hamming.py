@@ -27,10 +27,9 @@ def count_hamming(args, seeds, target_ratios, save_dir):
             sum_symbol_hamming = [0]*(args.msg_len+1)
     
             for seed in seeds:
-                load_dir = f"{'/'.join(save_dir.split('/')[:5])}\
-                    /{args.target_ratio}\
-                        /{args.msg_len}times{args.sum_params}/{args.fixed}/{args.ecc}/{args.t}\
-                            /{args.seed}"
+                args.seed = seed
+                load_dir = make_savedir(args)
+                
                 block_hamming_per_seed = ['', '', seed] + ['']*(args.msg_len+1)
                 symbol_hamming_per_seed = ['', '', seed] + ['']*(args.msg_len+1)
 
