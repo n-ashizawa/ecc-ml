@@ -14,7 +14,7 @@ def get_load_dir_name(args, taget_param, candidate):
     if args.random_target:
         load_dir = f"{params['before']}/{params['fixed']}/False/False/{params['msg_len']}/{params['ecc']}/1/{params['target_ratio']}/{params['t']}/random"
     else:
-        load_dir = f"{params['before']}/{params['fixed']}/False/False/{params['msg_len']}/{params['ecc']}/1/{params['target_ratio']}/{params['t']}/re"
+        load_dir = f"{params['before']}/{params['fixed']}/False/False/{params['msg_len']}/{params['ecc']}/1/{params['target_ratio']}/{params['t']}"
     return load_dir
 
 
@@ -246,7 +246,7 @@ def main():
         if args.random_target:
             save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/random/{row_param}{p}"
         else:
-            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/re/{row_param}{p}"
+            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/{row_param}{p}"
         os.makedirs(save_dir, exist_ok=True)
 
         logging = get_logger(f"{save_dir}/{column_param}{'-'.join(column_candis)}.log")
@@ -259,7 +259,7 @@ def main():
         if args.random_target:
             save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/random/{column_param}{p}"
         else:
-            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/re/{column_param}{p}"
+            save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/{column_param}{p}"
         os.makedirs(save_dir, exist_ok=True)
 
         logging = get_logger(f"{save_dir}/{row_param}{'-'.join(row_candis)}.log")
