@@ -33,7 +33,6 @@ def count_hamming(args, seeds, target_ratios, save_dir):
                 if args.random_target:
                     load_dir = f"{load_parent_dir}/{args.before}/{args.fixed}/False/False/{args.msg_len}/{args.ecc}/1/{args.target_ratio}/8/random"
                 else:
-                    #load_dir = f"{load_parent_dir}/{args.before}/{args.fixed}/False/False/{args.msg_len}/{args.ecc}/1/{args.target_ratio}/8/re"
                     load_dir = f"{load_parent_dir}/{args.before}/{args.fixed}/False/False/{args.msg_len}/{args.ecc}/1/{args.target_ratio}/8"
 
                 with open(f"{load_dir}/acc{args.after}.log", "r") as log_file:
@@ -91,7 +90,6 @@ def main():
     if args.random_target:
         save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/random/"
     else:
-        #save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/re/"
         save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}/table{args.after}/"
     os.makedirs(save_dir, exist_ok=True)
 

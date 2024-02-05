@@ -25,6 +25,7 @@ def summarize_loss(args, seeds, save_dir):
         writer.writerow(['', "seed"] + [i for i in range(1, args.epoch+1)])
         writer.writerow([])
 
+        train_losses = [["train losses"]]
         test_losses = [["test losses"]]
         
         for seed in seeds:
@@ -32,9 +33,14 @@ def summarize_loss(args, seeds, save_dir):
             
             with open(f"{load_dir}/loss.csv", "r") as loss_file:
                 print(f"opend {load_dir}/loss.csv")
-                lines = loss_file.readlines()[1]
-                test_losses.append(['', seed] + lines.split(",")[1:])
+                lines = loss_file.readlines()
+                train_loss = lines[1].rstrip()
+                test_loss = lines[2].rstrip()
+                train_losses.append(['', seed] + train_loss.split(",")[1:])
+                test_losses.append(['', seed] + test_loss.split(",")[1:])
         
+        writer.writerows(train_losses)
+        writer.writerow([])
         writer.writerows(test_losses)
             
 
@@ -54,31 +60,7 @@ def main():
     else:
         raise NotImplementedError
 
-    for seed in seeds:
-        setattr(args, "seed", seed)
-        save_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/{mode}/{args.pretrained}"
-        load_model_dir = f"{save_dir}/model"    
-
-        save_data_file = f"{save_dir}/loss.csv"
-        if not os.path.isfile(save_data_file):
-            _, test_loader = prepare_dataset(args)
-            test_losses = []
-        
-            for epoch in range(1, args.epoch+1):
-                model = load_model(args, f"{load_model_dir}/{epoch}", device)
-                _, loss = test(model, test_loader, device)
-                test_losses.append(loss)
-                
-                del model
-                torch.cuda.empty_cache()
-
-            with open(save_data_file, "w") as f:
-                writer = csv.writer(f)
-                writer.writerow(["train"])
-                writer.writerow(["test"] + test_losses)
-        
     save_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}"
-    #save_data_file = f"{save_dir}/{mode}{args.pretrained}.csv"
     summarize_loss(args, seeds, save_dir)
 
     exit()
