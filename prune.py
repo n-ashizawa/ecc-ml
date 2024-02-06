@@ -109,7 +109,7 @@ class FilterPrunner:
             v = v / np.sqrt(torch.sum(v * v))
             self.filter_ranks[i] = v.cpu()
 
-    def get_pruning_plan(self, num_filters_to_correct):
+    def get_pruning_plan(self, args, num_filters_to_correct):
         if args.random_target:
             filters_to_correct = self.random_ranking_filters(num_filters_to_correct)
         else:
@@ -161,13 +161,13 @@ def train_epoch(model, prunner, train_loader, device, optimizer=None, rank_filte
         train_batch(model, prunner, optimizer, criterion, batch, label, rank_filters, device)
 
 
-def get_candidates_to_correct(model, train_loader, num_filters_to_correct, device):
+def get_candidates_to_correct(args, model, train_loader, num_filters_to_correct, device):
     prunner = FilterPrunner(model, device) 
     prunner.reset()
     if not args.random_target:
         train_epoch(model, prunner, train_loader, device, rank_filters=True)
         prunner.normalize_ranks_per_layer()
-    return prunner.get_pruning_plan(num_filters_to_correct)
+    return prunner.get_pruning_plan(args, num_filters_to_correct)
         
         
 def prune(args, model, device, save_dir, logging):
@@ -178,7 +178,7 @@ def prune(args, model, device, save_dir, logging):
     num_filters_to_correct = int(number_of_filters * args.target_ratio)
     logging.info(f"Number of parameters to correct {args.target_ratio*100}% filters: {num_filters_to_correct}")
 
-    targets = get_candidates_to_correct(model, train_loader, num_filters_to_correct, device)
+    targets = get_candidates_to_correct(args, model, train_loader, num_filters_to_correct, device)
     np.save(save_data_file, targets)
 
         

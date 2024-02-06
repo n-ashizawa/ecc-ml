@@ -26,13 +26,6 @@ def encode_before(args, model_before, ECC, save_dir, logging):
         weight_ids = None
     
     for name in state_dict_before:
-        if args.last_layer:
-            last_layer = [n for n in state_dict_before][-1].split(".")[0]
-            if last_layer not in name:
-                continue
-        if args.weight_only:
-            if "weight" not in name:
-                continue
         if "num_batches_tracked" in name:
             continue
 
@@ -131,13 +124,6 @@ def decode_after(args, model_after, ECC, save_dir, logging):
         
     i = 0
     for name in state_dict_after:
-        if args.last_layer:
-            last_layer = [n for n in state_dict_after][-1].split(".")[0]
-            if last_layer not in name:
-                continue
-        if args.weight_only:
-            if "weight" not in name:
-                continue
         if "num_batches_tracked" in name:
             continue
         
