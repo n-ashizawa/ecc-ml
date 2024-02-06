@@ -218,7 +218,7 @@ def main():
     torch_fix_seed(args.seed)
     device = torch.device(args.device)
 
-    seeds = [1, 2, 3, 4]
+    seeds = [1 ,2 ,3 ,4]
     target_param = "t"
     param_candis = ["5", "6", "7", "8"]
     

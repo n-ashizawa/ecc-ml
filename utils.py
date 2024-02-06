@@ -342,13 +342,6 @@ def get_params_info(args, model, save_dir):
         weight_ids = None
 
     for name in state_dict:
-        if args.last_layer:
-            last_layer = [n for n in state_dict][-1].split(".")[0]
-            if last_layer not in name:
-                continue
-        if args.weight_only:
-            if "weight" not in name:
-                continue
         if "num_batches_tracked" in name:
             continue
 

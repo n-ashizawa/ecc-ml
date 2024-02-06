@@ -86,6 +86,7 @@ def main():
         raise NotImplementedError
 
     save_dir = f"{'/'.join(make_savedir(args).split('/')[:5])}/table{args.after}"
+    os.makedirs(save_dir, exist_ok=True)
     
     logging = get_logger(f"{save_dir}/hamming.log")
     logging_args(args, logging)
