@@ -1,3 +1,8 @@
+'''
+MIT License
+Copyright (c) 2023 fseclab-osaka
+'''
+
 #from .vgg import *
 #from .shufflenet import *
 #from .shufflenetv2 import *

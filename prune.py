@@ -1,4 +1,10 @@
+'''
+MIT License
+Copyright (c) 2023 fseclab-osaka
+
 # https://github.com/jacobgil/pytorch-pruning
+'''
+
 import torch
 from torch.autograd import Variable
 from heapq import nlargest
