@@ -7,7 +7,7 @@ Install
 -----
 
 ```
-git clone git@github.com:fseclab-osaka/ecc-ml.git
+git clone https://github.com/fseclab-osaka/ecc-ml.git
 cd ecc-ml
 pip install -r requirements.txt
 ```
