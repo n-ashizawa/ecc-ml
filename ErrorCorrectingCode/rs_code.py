@@ -1,7 +1,8 @@
-"""
+'''
 MIT License
 Copyright (c) 2023 fseclab-osaka
-"""
+'''
+
 from reedsolo import RSCodec, ReedSolomonError
 
 from utils import *
