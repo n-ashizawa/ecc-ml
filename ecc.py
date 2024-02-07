@@ -34,7 +34,6 @@ def encode_before(args, model_before, ECC, save_dir, logging):
         reds1 = []
         reds2 = []
         params = []
-        sum_params = 0
 
         if args.target_ratio < 1.0:
             layer = '.'.join(name.split('.')[:-1])
@@ -62,9 +61,6 @@ def encode_before(args, model_before, ECC, save_dir, logging):
                     #print('0', "ids:", ids, "original:", original_index[0], "wid:", weight_ids)
 
             params.append(value.item())
-            sum_params += 1
-            if args.sum_params > sum_params:
-                continue
             whole_b_bs = []
             b_b = []
             for p in params:
@@ -73,7 +69,7 @@ def encode_before(args, model_before, ECC, save_dir, logging):
                 whole_b_bs.append(whole_b_b)   # storage all bits
                 b_b.extend(whole_b_b[:args.msg_len])
             encoded_msg = ECC.encode(b_b)
-            msglen = args.msg_len*args.sum_params
+            msglen = args.msg_len
             redlen = args.t*4   # 4 = 8 % 2
             b_es = encoded_msg[:msglen]
             reds1.append(encoded_msg[msglen:msglen+redlen])
@@ -86,7 +82,6 @@ def encode_before(args, model_before, ECC, save_dir, logging):
                 p_e, _, _ = get_param_from_bin(whole_b_e, integer_len=integer_len, fixed=args.fixed)
                 encoded_params.append(p_e)
             params = []   # initialize
-            sum_params = 0   # initialize
             
         all_reds1.append(reds1)
         all_reds2.append(reds2)
@@ -130,7 +125,6 @@ def decode_after(args, model_after, ECC, save_dir, logging):
         param = state_dict_after[name]
         decoded_params = []
         params = []
-        sum_params = 0
 
         if args.target_ratio < 1.0:
             layer = '.'.join(name.split('.')[:-1])
@@ -156,9 +150,6 @@ def decode_after(args, model_after, ECC, save_dir, logging):
                         continue
 
             params.append(value.item())
-            sum_params += 1
-            if args.sum_params > sum_params:
-                continue
             whole_b_as = []
             b_a = []
             for p in params:
@@ -179,7 +170,6 @@ def decode_after(args, model_after, ECC, save_dir, logging):
                 decoded_params.append(p_d)
             j += 1
             params = []   # initialize
-            sum_params = 0   # initialize
 
         reshape_decoded_params = torch.Tensor(decoded_params).view(param.data.size())
         # Modify the state dict

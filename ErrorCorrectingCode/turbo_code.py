@@ -12,7 +12,7 @@ from utils import *
 class TurboCode:
     def __init__(self, args):
         torch_fix_seed(args.seed)
-        self.msg_len = args.msg_len*args.sum_params
+        self.msg_len = args.msg_len
         self.memory = np.array([4])
         self.generator_matrix = np.array([[1, 3, 7]])
         self.code_type = 'rsc'
