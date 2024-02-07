@@ -1,3 +1,8 @@
+'''
+MIT License
+Copyright (c) 2023 fseclab-osaka
+'''
+
 import random
 import struct
 from decimal import Decimal
