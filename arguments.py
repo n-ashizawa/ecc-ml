@@ -1,3 +1,8 @@
+'''
+MIT License
+Copyright (c) 2023 fseclab-osaka
+'''
+
 import argparse
 
 def get_args():
