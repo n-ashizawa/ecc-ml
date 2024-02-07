@@ -457,7 +457,7 @@ def make_savedir(args):
 
     save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.pretrained}/{args.before}"\
         f"/{'random' if args.random_target else 'prune'}/{args.target_ratio}"\
-            f"/{args.msg_len}times{args.sum_params}/{args.fixed}/{args.ecc}/{args.t}"\
+            f"/{args.msg_len}/{args.fixed}/{args.ecc}/{args.t}"\
                 f"/{args.seed}"
     os.makedirs(save_dir, exist_ok=True)
 

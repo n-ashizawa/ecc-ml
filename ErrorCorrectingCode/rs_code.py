@@ -6,7 +6,7 @@ from utils import *
 class RSCode:
     def __init__(self, args):
         torch_fix_seed(args.seed)
-        self.msg_len = args.msg_len*args.sum_params
+        self.msg_len = args.msg_len
         # t = ((self.msg_len+7)//8)*4 => 16 bits (msg_len=32)
         #self.t = ((self.msg_len+7)//8)*4
         self.t = args.t

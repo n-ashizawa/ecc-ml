@@ -86,7 +86,7 @@ class FilterPrunner:
         data = []
         for i in range(len(self.activation_to_layer)):
             for j in range(self.filter_ranks[i]):
-                data.append((self.activation_to_layer[i], j))
+                data.append((self.activation_to_layer[i], j, None))
         
         if num > len(data):
             raise ValueError(f"num({num}) > len(data)({len(data)})")

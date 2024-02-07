@@ -6,7 +6,7 @@ from utils import *
 class BCHCode:
     def __init__(self, args):
         torch_fix_seed(args.seed)
-        self.msg_len = args.msg_len*args.sum_params
+        self.msg_len = args.msg_len
         # ecc_bits = t * m = msg_len(byte)*4 bytes
         #self.t = 16   # when msg_len=32
         #self.m = 8   # when msg_len=32
