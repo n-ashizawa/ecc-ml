@@ -38,7 +38,7 @@ Compare Inference Accracy of Error-corrected Model:
 python acc_error_correct.py --mode output
 ```
 
-## Example
+### Examples
 1. Train a ResNet18 model on the CIFAR10 dataset with the over-fitting setting.
 ```
 python train.py --seed 0 --arch resnet18 --dataset cifar10 --lr 0.001 --epoch 100 --over-fitting
@@ -77,7 +77,8 @@ python post_results.py --seed 0 --arch resnet18 --dataset cifar10 --over-fitting
 ```
 
 
-# References of Code 
+References of Code 
+-----
 
 - [Reed-Solomom Codes](https://github.com/tomerfiliba-org/reedsolomon.git)
 - Model Pruning: [Pruning Convolutional Neural Networks for Resource Efficient Inference](https://github.com/jacobgil/pytorch-pruning.git)
