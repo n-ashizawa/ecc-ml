@@ -13,7 +13,7 @@ def get_args():
     parser.add_argument("--after", type=int, default=2, help="Error-correct 'after'-th epoch's model")
     parser.add_argument("--arch", type=str, default="resnet18", 
         choices=["resnet18", "resnet152", "VGG11", "VGG13", "VGG16", "VGG19", "bert", "vit", 
-                    "mlp", "mtmlp"])
+                    "mlp", "mtmlp", "cnn", "mtcnn"])
     parser.add_argument("--dataset", type=str, default="cifar10", 
         choices=["cifar10", "cifar100", "classification", "splitmnist", "splitcifar10"])
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cuda:0", "cuda:1", "cpu"])

@@ -24,7 +24,7 @@ from transformers import BertTokenizer
 
 from network import *
 
-from avalanche.models import SimpleMLP, MTSimpleMLP
+from avalanche.models import SimpleMLP, MTSimpleMLP, SimpleCNN, MTSimpleCNN
 from avalanche.benchmarks.classic import SplitMNIST, SplitCIFAR10
 
 
@@ -46,6 +46,10 @@ def make_model(args, device, n_classes=10):
             model = SimpleMLP(num_classes=n_classes)
         elif args.arch == "mtmlp":
             model = MTSimpleMLP()
+        elif args.arch == "cnn":
+            model = SimpleCNN(num_classes=n_classes)
+        elif args.arch == "mtcnn":
+            model = MTSimpleCNN()
         else:
             raise NotImplementedError
     else:

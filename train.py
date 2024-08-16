@@ -100,14 +100,14 @@ def main():
 
             if args.clalgo == "naive":
                 cl_strategy = Naive(
-                    model, optimizer,
-                    nn.CrossEntropyLoss(), train_mb_size=500, train_epochs=args.epoch, eval_mb_size=100,
+                    model=model, optimizer=optimizer,
+                    criterion=nn.CrossEntropyLoss(), train_mb_size=500, train_epochs=args.epoch, eval_mb_size=100,
                     device=device, evaluator=eval_plugin
                 )
             elif args.clalgo == "cumulative":
                 cl_strategy = Cumulative(
-                    model, optimizer,
-                    nn.CrossEntropyLoss(), train_mb_size=500, train_epochs=args.epoch, eval_mb_size=100,
+                    model=model, optimizer=optimizer,
+                    criterion=nn.CrossEntropyLoss(), train_mb_size=500, train_epochs=args.epoch, eval_mb_size=100,
                     device=device, evaluator=eval_plugin
                 )
             else:
