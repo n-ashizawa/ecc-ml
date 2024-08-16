@@ -16,10 +16,13 @@ from sklearn.metrics import accuracy_score
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 from network import *
+
+from avalanche.models import SimpleMLP
+from avalanche.benchmarks.classic import SplitMNIST
 
 
 def torch_fix_seed(seed=42):
@@ -34,26 +37,29 @@ def torch_fix_seed(seed=42):
     torch.use_deterministic_algorithms = True
 
 
-def make_model(args, device):
-    if args.dataset == "cifar10":
-        if args.arch == "resnet18":
-            model = ResNet18()
-        elif args.arch == "resnet152":
-            model = ResNet152()
-        elif "VGG" in args.arch:
-            model = VGG(args.arch)
-        elif args.arch == "shufflenetg2":
-            model = ShuffleNetG2()
-        elif args.arch == "mobilenet":
-            model = MobileNet()
-    elif args.dataset == "cifar100":
-        model = resnet18()
+def make_model(args, device, n_classes=10):
+    if args.cl:
+        model = SimpleMLP(num_classes=n_classes)
+    else:
+        if args.dataset == "cifar10":
+            if args.arch == "resnet18":
+                model = ResNet18()
+            elif args.arch == "resnet152":
+                model = ResNet152()
+            elif "VGG" in args.arch:
+                model = VGG(args.arch)
+            elif args.arch == "shufflenetg2":
+                model = ShuffleNetG2()
+            elif args.arch == "mobilenet":
+                model = MobileNet()
+        elif args.dataset == "cifar100":
+            model = resnet18()
     model = model.to(device)
     return model
 
 
-def load_model(args, file_name, device):
-    model = make_model(args, device)
+def load_model(args, file_name, device, n_classes=10):
+    model = make_model(args, device, n_classes)
     # load the real state dict
     model.load_state_dict(torch.load(f"{file_name}.pt", map_location="cpu"))
     print(f"{file_name} model loaded.")
@@ -191,46 +197,54 @@ def label_flipping(args, train_set, save_dir=""):
 
 
 def prepare_dataset(args, save_dir=""):
-    if args.dataset == "cifar10":
-        load_dataset = datasets.CIFAR10
-    elif args.dataset == "cifar100":   # https://github.com/weiaicunzai/pytorch-cifar100
-        load_dataset = datasets.CIFAR100
-    else:
-        raise NotImplementedError
+    if not args.cl:
+        if args.dataset == "cifar10":
+            load_dataset = datasets.CIFAR10
+            n_classes = 10
+        elif args.dataset == "cifar100":   # https://github.com/weiaicunzai/pytorch-cifar100
+            load_dataset = datasets.CIFAR100
+            n_classes = 100
+        else:
+            raise NotImplementedError
     
     train_trans, test_trans = get_trans(args)
     
-    train_set = load_dataset(
-        root="./train/data",
-        train=True,
-        download=True,
-        transform=train_trans,
-    )
-    test_set = load_dataset(
+    if args.cl:
+        benchmark = SplitMNIST(n_experiences=5)
+        train_loader = benchmark.train_stream
+        test_loader = benchmark.test_stream
+        n_classes = benchmark.n_classes
+    else:
+        train_set = load_dataset(
             root="./train/data",
-            train=False,
+            train=True,
             download=True,
-            transform=test_trans,
-    )
+            transform=train_trans,
+        )
+        test_set = load_dataset(
+                root="./train/data",
+                train=False,
+                download=True,
+                transform=test_trans,
+        )
 
-    
-    train_set = label_flipping(args, train_set, save_dir=save_dir)
+        train_set = label_flipping(args, train_set, save_dir=save_dir)
 
-    train_loader = DataLoader(
-            train_set,
-            batch_size=256,
-            shuffle=True,
-            num_workers=2
-    )
+        train_loader = DataLoader(
+                train_set,
+                batch_size=256,
+                shuffle=True,
+                num_workers=2
+        )
 
-    test_loader = DataLoader(
-            test_set,
-            batch_size=1024,
-            shuffle=False,
-            num_workers=2
-    )
+        test_loader = DataLoader(
+                test_set,
+                batch_size=1024,
+                shuffle=False,
+                num_workers=2
+        )
 
-    return train_loader, test_loader
+    return train_loader, test_loader, n_classes
 
 
 def get_bin_from_param(weight, length=32, fixed=False):

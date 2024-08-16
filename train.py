@@ -14,11 +14,24 @@ from utils import *
 from arguments import get_args
 from logger import get_logger, logging_args
 
+from avalanche.evaluation.metrics import forgetting_metrics, accuracy_metrics,\
+    loss_metrics, timing_metrics, cpu_usage_metrics, StreamConfusionMatrix,\
+    disk_usage_metrics, gpu_usage_metrics
+from avalanche.logging import InteractiveLogger, TextLogger, TensorboardLogger
+from avalanche.training.plugins import EvaluationPlugin
+from avalanche.training import Naive
+
+
 
 def main():
     args = get_args()
     torch_fix_seed(args.seed)
     device = torch.device(args.device)
+
+    if args.cl:
+        args.arch = "mlp"
+        args.dataset = "splitmnist"
+        args.epoch = 1
 
     if args.over_fitting:
         mode = "over-fitting"
@@ -39,12 +52,12 @@ def main():
         logging = get_logger(f"{save_dir}/train.log")
         logging_args(args, logging)
 
-        train_loader, test_loader = prepare_dataset(args, save_dir)
+        train_loader, test_loader, n_classes = prepare_dataset(args, save_dir)
         train_losses = []
         test_losses = []
         
         if args.pretrained == 0:
-            model = make_model(args, device)
+            model = make_model(args, device, n_classes=n_classes)
         elif args.pretrained > 0:
             for epoch in range(1, args.pretrained+1):
                 model = load_model(args, f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{args.seed}/normal/0/model/{epoch}", device)
