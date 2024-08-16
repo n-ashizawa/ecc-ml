@@ -15,6 +15,7 @@ def get_args():
         choices=["resnet18", "resnet152", "VGG11", "VGG13", "VGG16", "VGG19", "shufflenetg2", "mobilenet"])
     parser.add_argument("--dataset", type=str, default="cifar10", choices=["cifar10", "cifar100"])
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"])
+    parser.add_argument("--cl", action="store_true", default=False, help="Continual learning flag")
     # train
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate for training")
     parser.add_argument("--epoch", type=int, default=100, help="Number of epochs for training")
