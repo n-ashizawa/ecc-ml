@@ -24,8 +24,8 @@ from transformers import BertTokenizer
 
 from network import *
 
-from avalanche.models import SimpleMLP
-from avalanche.benchmarks.classic import SplitMNIST
+from avalanche.models import SimpleMLP, MTSimpleMLP
+from avalanche.benchmarks.classic import SplitMNIST, SplitCIFAR10
 
 
 def torch_fix_seed(seed=42):
@@ -41,8 +41,13 @@ def torch_fix_seed(seed=42):
 
 
 def make_model(args, device, n_classes=10):
-    if args.cl:
-        model = SimpleMLP(num_classes=n_classes)
+    if args.clalgo is not None:
+        if args.arch == "mlp":
+            model = SimpleMLP(num_classes=n_classes)
+        elif args.arch == "mtmlp":
+            model = MTSimpleMLP()
+        else:
+            raise NotImplementedError
     else:
         if args.dataset == "cifar10":
             if args.arch == "resnet18":
@@ -316,7 +321,7 @@ def load_classification(root, train=True, download=False, transform=None):
 
 
 def prepare_dataset(args, save_dir=""):
-    if not args.cl:
+    if args.clalgo is None:
         if args.dataset == "cifar10":
             load_dataset = datasets.CIFAR10
             TRAIN_BATCH_SIZE = 256
@@ -337,8 +342,13 @@ def prepare_dataset(args, save_dir=""):
             n_classes = 10
         else:
             raise NotImplementedError
-    if args.cl:
-        benchmark = SplitMNIST(n_experiences=5)
+    if args.clalgo is not None:
+        if args.dataset == "splitmnist":
+            benchmark = SplitMNIST(n_experiences=5)
+        elif args.dataset == "splitcifar10":
+            benchmark = SplitCIFAR10(n_experiences=5)
+        else:
+            raise NotImplementedError
         train_loader = benchmark.train_stream
         test_loader = benchmark.test_stream
         n_classes = benchmark.n_classes

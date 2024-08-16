@@ -1,2 +1,4 @@
-data/*
 train/*
+tb_data/*
+__pycache__/*
+network/__pycache__/*

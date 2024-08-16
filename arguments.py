@@ -12,10 +12,13 @@ def get_args():
     parser.add_argument("--before", type=int, default=1, help="Set 'before'-th epoch's model as the original model")
     parser.add_argument("--after", type=int, default=2, help="Error-correct 'after'-th epoch's model")
     parser.add_argument("--arch", type=str, default="resnet18", 
-        choices=["resnet18", "resnet152", "VGG11", "VGG13", "VGG16", "VGG19", "bert", "vit"])
-    parser.add_argument("--dataset", type=str, default="cifar10", choices=["cifar10", "cifar100", "classification"])
+        choices=["resnet18", "resnet152", "VGG11", "VGG13", "VGG16", "VGG19", "bert", "vit", 
+                    "mlp", "mtmlp"])
+    parser.add_argument("--dataset", type=str, default="cifar10", 
+        choices=["cifar10", "cifar100", "classification", "splitmnist", "splitcifar10"])
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cuda:0", "cuda:1", "cpu"])
-    parser.add_argument("--cl", action="store_true", default=False, help="Continual learning flag")
+    parser.add_argument("--clalgo", type=str, default=None, 
+        choices=["naive", "cumulative"])
     # train
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate for training")
     parser.add_argument("--epoch", type=int, default=100, help="Number of epochs for training")
