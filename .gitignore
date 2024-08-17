@@ -7,3 +7,4 @@ network/__pycache__/*
 
 train/*
 tb_data/*
+ecc/*

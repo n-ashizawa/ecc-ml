@@ -644,8 +644,9 @@ def make_savedir(args):
     return save_dir
 
 
-def get_name_from_correct_targets(args, model, save_dir):
-    save_data_file = f"{'/'.join(make_savedir(args).split('/')[:6])}/{args.seed}_targets.npy"
+def get_name_from_correct_targets(args, model, save_dir=None, save_data_file=None):
+    if save_dir is not None:
+        save_data_file = f"{save_dir}/{args.seed}_targets.npy"
     targets = np.load(save_data_file)
     prune_layers = model.get_prune_layers()
 
