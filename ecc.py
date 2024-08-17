@@ -20,12 +20,15 @@ from logger import get_logger, logging_args
 
 def encode_before(args, model_before, ECC, save_dir, logging):
     # Get the state dict
+    loop_num = 1
+    finetune_epochs = 1
     model_encoded = copy.deepcopy(model_before)
     state_dict_before = model_before.state_dict()
     state_dict_encoded = model_encoded.state_dict()
     all_reds = []
     if args.target_ratio < 1.0:
-        correct_targets_name = get_name_from_correct_targets(args, model_before, save_dir)
+        save_data_file = f"{'/'.join(save_dir.split('/')[:-5])}/{args.seed}_targets-{loop_num}-{finetune_epochs}.npy"
+        correct_targets_name = get_name_from_correct_targets(args, model_before, save_data_file=save_data_file)
         modules_before = {name: module for name, module in model_before.named_modules()}
     
     weight_ids_out = None
@@ -56,20 +59,19 @@ def encode_before(args, model_before, ECC, save_dir, logging):
                 if is_target or not is_linear:
                     if weight_ids_out is None:
                         skip_flag = True
-                    if original_index[0] not in weight_ids_out:
+                    elif original_index[0] not in weight_ids_out:
                         skip_flag = True
 
                 if is_target or is_linear:   # conv/embedding or linear
                     if is_weight:
                         if weight_ids_in is None:
                             skip_flag = True
-                        if original_index[1] not in weight_ids_in:
+                        elif original_index[1] not in weight_ids_in:
                             skip_flag = True
                 
                 if skip_flag:
                     encoded_params.append(value.item())   # not targets
                     continue
-                
 
             params.append(value.item())
             whole_b_bs = []
@@ -100,29 +102,33 @@ def encode_before(args, model_before, ECC, save_dir, logging):
 
         weight_ids_in = weight_ids_out   # update
 
-    write_varlen_csv(all_reds, f"{save_dir}/reds")
+    write_varlen_csv(all_reds, f"{save_dir}/reds-{loop_num}-{finetune_epochs}")
 
     # Load the modified state dict
     model_encoded.load_state_dict(state_dict_encoded)
-    save_model(model_encoded, f"{save_dir}/encoded")
+    save_model(model_encoded, f"{save_dir}/encoded-{loop_num}-{finetune_epochs}")
     del model_encoded
  
 
 def decode_after(args, model_after, ECC, save_dir, logging):
     # Get the state dict
+    loop_num = 1
+    finetune_epochs = 1
     model_decoded = copy.deepcopy(model_after)
     state_dict_after = model_after.state_dict()
     state_dict_decoded = model_decoded.state_dict()
     # Load the encoded redidundants
-    all_reds_str = read_varlen_csv(f"{save_dir}/reds")
+    all_reds_str = read_varlen_csv(f"{save_dir}/reds-{loop_num}-{finetune_epochs}")
     all_reds = get_intlist_from_strlist(all_reds_str)
     logging.info("all redundants are loaded")
     
     if args.target_ratio < 1.0:
-        correct_targets_name = get_name_from_correct_targets(args, model_after, save_dir)
+        save_data_file = f"{'/'.join(save_dir.split('/')[:-5])}/{args.seed}_targets-{loop_num}-{finetune_epochs}.npy"
+        correct_targets_name = get_name_from_correct_targets(args, model_after, save_data_file=save_data_file)
         modules_after = {name: module for name, module in model_after.named_modules()}
-        weight_ids = None
         
+    weight_ids_out = None
+    weight_ids_in = None
     i = 0
     for name in state_dict_after:
         if "num_batches_tracked" in name:
@@ -135,28 +141,33 @@ def decode_after(args, model_after, ECC, save_dir, logging):
         if args.target_ratio < 1.0:
             layer = '.'.join(name.split('.')[:-1])
             is_weight = (name.split('.')[-1] == "weight")
-            is_target = layer in correct_targets_name   # conv or embedding oe linear
+            is_target = layer in correct_targets_name   # conv or embedding
             is_linear = layer in modules_after and isinstance(modules_after[layer], torch.nn.Linear)   # linear
-            
+            if is_target:
+                weight_ids_out = correct_targets_name[layer]
+        
         j = 0
         for ids, value in enumerate(param.view(-1)):
             if args.target_ratio < 1.0:
+                skip_flag = False
                 original_index = np.unravel_index(ids, param.shape)
-                if is_target or is_linear:   # conv/embedding or linear
-                    if is_weight and weight_ids is not None:   # weight
-                        if original_index[1] not in weight_ids:   # not targets
-                            decoded_params.append(value.item())
-                            continue
-                if is_target:   # conv or embedding
-                    weight_ids = correct_targets_name[layer]   # update
                 
                 if is_target or not is_linear:
-                    if weight_ids is None:
-                        decoded_params.append(value.item())
-                        continue
-                    if original_index[0] not in weight_ids:   # not targets
-                        decoded_params.append(value.item())
-                        continue
+                    if weight_ids_out is None:
+                        skip_flag = True
+                    elif original_index[0] not in weight_ids_out:
+                        skip_flag = True
+
+                if is_target or is_linear:   # conv/embedding or linear
+                    if is_weight:
+                        if weight_ids_in is None:
+                            skip_flag = True
+                        elif original_index[1] not in weight_ids_in:
+                            skip_flag = True
+                
+                if skip_flag:
+                    decoded_params.append(value.item())   # not targets
+                    continue
 
             params.append(value.item())
             whole_b_as = []
@@ -185,9 +196,11 @@ def decode_after(args, model_after, ECC, save_dir, logging):
         logging.info(f"{name} is decoded")
         i += 1
 
+        weight_ids_in = weight_ids_out   # update
+
     # Load the modified state dict
     model_decoded.load_state_dict(state_dict_decoded)
-    save_model(model_decoded, f"{save_dir}/decoded{args.after}")
+    save_model(model_decoded, f"{save_dir}/decoded{args.after}-{loop_num}-{finetune_epochs}")
     del model_decoded
 
 

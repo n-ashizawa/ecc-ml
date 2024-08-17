@@ -1,9 +1,10 @@
-.env/*
 .DS_Store
+.env/*
 .python-version
 
 __pycache__/*
 network/__pycache__/*
+ErrorCorrectingCode/__pycache__/*
 
 train/*
 tb_data/*
