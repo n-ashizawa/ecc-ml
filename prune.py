@@ -184,6 +184,7 @@ def train_batch(args, model, prunner, optimizer, data, rank_filters, device):
 
 
 def train_epoch(args, model, prunner, train_loader, device, optimizer=None, rank_filters=False):
+    model.train()
     for _, data in enumerate(train_loader):
         train_batch(args, model, prunner, optimizer, data, rank_filters, device)
 
@@ -197,14 +198,77 @@ def get_candidates_to_correct(args, model, train_loader, num_filters_to_correct,
         
         
 def prune(args, model, device, save_data_file, logging):
-    train_loader, _ = prepare_dataset(args)
+    loop_num = 1
+    finetune_epochs = 1
+    train_loader, test_loader, _ = prepare_dataset(args)
     
     number_of_filters = total_num_filters(args, model)
-    num_filters_to_correct = int(number_of_filters * args.target_ratio)
-    logging.info(f"Number of parameters to correct {args.target_ratio*100}% filters: {num_filters_to_correct}")
+    total_num_filters_to_correct = int(number_of_filters * args.target_ratio)
+    logging.info(f"Total number of parameters to correct {args.target_ratio*100}% filters: {total_num_filters_to_correct}")
 
-    targets = get_candidates_to_correct(args, model, train_loader, num_filters_to_correct, device)
+    #num_filters_to_correct_per_loop = int(number_of_filters * args.target_ratio // loop_num)
+    #logging.info(f"Number of parameters to correct {args.target_ratio*100}% filters per loop: {num_filters_to_correct_per_loop}")
+
+    targets = get_candidates_to_correct(args, model, train_loader, total_num_filters_to_correct, device)
     np.save(save_data_file, targets)
+        
+    name_list = []
+    for name in model.state_dict():
+        is_weight = (name.split('.')[-1] == "weight")
+        is_bias = (name.split('.')[-1] == "bias")
+        if is_weight or is_bias:
+            name_list.append(name)
+    modules = {name: module for name, module in model.named_modules()}
+    
+    for i in range(loop_num):
+        correct_targets_name = get_name_from_correct_targets(args, model, save_data_file.split('_targets.npy')[0])
+        weight_ids_out = None
+        weight_ids_in = None
+        
+        for i, param in enumerate(model.parameters()):
+            layer = '.'.join(name_list[i].split('.')[:-1])
+            is_target = layer in correct_targets_name
+            is_linear = layer in modules and isinstance(modules[layer], torch.nn.Linear) 
+            if is_target:
+                weight_ids_out = correct_targets_name[layer]
+
+            for ids, _ in enumerate(param.view(-1)):
+                skip_flag = False
+                original_index = np.unravel_index(ids, param.shape)
+                
+                if is_target or not is_linear:
+                    if weight_ids_out is None:
+                        skip_flag = True
+                    if original_index[0] not in weight_ids_out:
+                        skip_flag = True
+
+                if is_target or is_linear:   # conv/embedding or linear
+                    if is_weight:
+                        if weight_ids_in is None:
+                            skip_flag = True
+                        if original_index[1] not in weight_ids_in:
+                            skip_flag = True
+                
+                if skip_flag:
+                    param.view(-1)[ids].requires_grad = False
+                else:
+                    param.view(-1)[ids].requires_grad = True
+
+        # 更新しないパラメータの勾配計算も行う
+        optimizer = make_optim(args, model)
+
+        for epoch in range(finetune_epochs):
+            acc, loss = train(args, model, train_loader, optimizer, device)
+            logging.info(f"EPOCH: {epoch}\n"
+                f"TRAIN ACC: {acc:.6f}\t"
+                f"TRAIN LOSS: {loss:.6f}")
+            # test acc
+            acc, loss = test(args, model, test_loader, device)
+            logging.info(f"VAL ACC: {acc:.6f}\t"
+                f"VAL LOSS: {loss:.6f}")
+            
+        targets = get_candidates_to_correct(args, model, train_loader, total_num_filters_to_correct, device)
+        np.save(save_data_file, targets)
 
         
 def main():

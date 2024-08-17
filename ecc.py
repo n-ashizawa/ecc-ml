@@ -27,7 +27,9 @@ def encode_before(args, model_before, ECC, save_dir, logging):
     if args.target_ratio < 1.0:
         correct_targets_name = get_name_from_correct_targets(args, model_before, save_dir)
         modules_before = {name: module for name, module in model_before.named_modules()}
-        weight_ids = None
+    
+    weight_ids_out = None
+    weight_ids_in = None
     
     for name in state_dict_before:
         if "num_batches_tracked" in name:
@@ -43,25 +45,31 @@ def encode_before(args, model_before, ECC, save_dir, logging):
             is_weight = (name.split('.')[-1] == "weight")
             is_target = layer in correct_targets_name   # conv or embedding
             is_linear = layer in modules_before and isinstance(modules_before[layer], torch.nn.Linear)   # linear
+            if is_target:
+                weight_ids_out = correct_targets_name[layer]
             
         for ids, value in enumerate(param.view(-1)):
             if args.target_ratio < 1.0:
+                skip_flag = False
                 original_index = np.unravel_index(ids, param.shape)
-                if is_target or is_linear:   # conv/embedding or linear
-                    if is_weight and weight_ids is not None:   # weight
-                        if original_index[1] not in weight_ids:
-                            encoded_params.append(value.item())   # not targets
-                            continue
-                if is_target:   # conv or embedding
-                    weight_ids = correct_targets_name[layer]   # update
                 
                 if is_target or not is_linear:
-                    if weight_ids is None:
-                        encoded_params.append(value.item())   # not targets
-                        continue
-                    if original_index[0] not in weight_ids:
-                        encoded_params.append(value.item())   # not targets
-                        continue
+                    if weight_ids_out is None:
+                        skip_flag = True
+                    if original_index[0] not in weight_ids_out:
+                        skip_flag = True
+
+                if is_target or is_linear:   # conv/embedding or linear
+                    if is_weight:
+                        if weight_ids_in is None:
+                            skip_flag = True
+                        if original_index[1] not in weight_ids_in:
+                            skip_flag = True
+                
+                if skip_flag:
+                    encoded_params.append(value.item())   # not targets
+                    continue
+                
 
             params.append(value.item())
             whole_b_bs = []
@@ -89,6 +97,8 @@ def encode_before(args, model_before, ECC, save_dir, logging):
         # Modify the state dict
         state_dict_encoded[name] = reshape_encoded_params
         logging.info(f"{name} is encoded")
+
+        weight_ids_in = weight_ids_out   # update
 
     write_varlen_csv(all_reds, f"{save_dir}/reds")
 
