@@ -17,16 +17,18 @@ from arguments import get_args
 from logger import get_logger, logging_args
 
 
-def calc_acc(args, model_before, model_after, model_decoded, save_dir, logging):
+def calc_acc(args, model_before, model_after, model_decoded, 
+             loop_num, finetune_epochs, save_dir, logging):
     model_before.eval()
     model_after.eval()
     model_decoded.eval()
 
     # save parameters
     # {"p_m":[], "s_m":[], "b_m":[]} m: before, after, decoded
-    params_before = get_params_info(args, model_before, save_dir)
-    params_after = get_params_info(args, model_after, save_dir)
-    params_decoded = get_params_info(args, model_decoded, save_dir)
+    save_data_file = f"{'/'.join(save_dir.split('/')[:-5])}/{args.seed}_targets-{loop_num}-{finetune_epochs}.npy"
+    params_before = get_params_info(args, model_before, save_data_file)
+    params_after = get_params_info(args, model_after, save_data_file)
+    params_decoded = get_params_info(args, model_decoded, save_data_file)
     params_info = {"before":params_before, "after":params_after, "decoded":params_decoded}
     
     """
@@ -35,7 +37,7 @@ def calc_acc(args, model_before, model_after, model_decoded, save_dir, logging):
     plt.plot(params_info["after"]["p_m"], label=f"epoch {args.after}", alpha=0.3)
     plt.plot(params_info["decoded"]["p_m"], label=f"decoded epoch {args.before} to {args.after}", alpha=0.3)
     plt.legend()
-    plt.savefig(f"{save_dir}/parameters{args.after}.png")
+    plt.savefig(f"{save_dir}/parameters{args.after}-{loop_num}-{finetune_epochs}.png")
     plt.clf()
     """
 
@@ -48,9 +50,9 @@ def calc_acc(args, model_before, model_after, model_decoded, save_dir, logging):
     # save acc of correcting
     block_success = []
     for i, b_b in enumerate(params_info["before"]["b_m"]):
-        b_a = params_info["after"]["b_m"][i]
+        #b_a = params_info["after"]["b_m"][i]
         b_d = params_info["decoded"]["b_m"][i]
-        dist_b_and_a = distance_info["before_after"][i]
+        #dist_b_and_a = distance_info["before_after"][i]
 
         if b_b == b_d:
             block_success.append(True)
@@ -64,7 +66,7 @@ def calc_acc(args, model_before, model_after, model_decoded, save_dir, logging):
     success = {"block":block_success, "symbol":symbol_success}
     
     # plot all
-    with open(f"{save_dir}/{args.mode}{args.after}.txt", "w", newline="") as f:
+    with open(f"{save_dir}/{args.mode}{args.after}-{loop_num}-{finetune_epochs}.txt", "w", newline="") as f:
         writer = csv.writer(f)
         header = np.concatenate([list(params_info.keys()), list(distance_info.keys()), list(success.keys())])
         writer.writerow(header)
@@ -91,10 +93,11 @@ def calc_acc(args, model_before, model_after, model_decoded, save_dir, logging):
         )
 
 
-def check_output(args, model_before, model_after, model_decoded, device, save_dir, logging):
-    _, test_loader = prepare_dataset(args)
+def check_output(args, model_before, model_after, model_decoded, device, 
+                 loop_num, finetune_epochs, save_dir, logging):
+    _, test_loader, _ = prepare_dataset(args)
 
-    save_data_file = "/".join(save_dir.split("/")[:4]) + f"/{args.seed}_diff{args.after}.npz"
+    save_data_file = "/".join(save_dir.split("/")[:4]) + f"/{args.seed}_diff{args.after}-{loop_num}-{finetune_epochs}.npz"
     if not os.path.isfile(save_data_file):
         indice, outputs = save_output_dist(args, model_before, model_after, test_loader, device)
         np.savez(save_data_file, indice=indice, outputs=outputs)
@@ -109,7 +112,7 @@ def check_output(args, model_before, model_after, model_decoded, device, save_di
     logging.info(f"After\tacc: {after_acc},\tloss: {after_loss}")
     logging.info(f"Decoded\tacc: {decoded_acc},\tloss: {decoded_loss}")
 
-    with open(f"{save_dir}/{args.mode}{args.after}.txt", "w", newline="") as f:
+    with open(f"{save_dir}/{args.mode}{args.after}-{loop_num}-{finetune_epochs}.txt", "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([len(dist_data["indice"]), "->", len(fail), len(deterioration)])
         writer.writerow(["after", "decoded", "before"])
@@ -214,18 +217,22 @@ def main():
     load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model"
     save_dir = make_savedir(args)
 
-    save_data_file = f"{save_dir}/{args.mode}{args.after}.txt"
+    loop_num = 0
+    finetune_epochs = 0
+    save_data_file = f"{save_dir}/{args.mode}{args.after}-{loop_num}-{finetune_epochs}.txt"
     if not os.path.isfile(save_data_file):
-        logging = get_logger(f"{save_dir}/{args.mode}{args.after}.log")
+        logging = get_logger(f"{save_dir}/{args.mode}{args.after}-{loop_num}-{finetune_epochs}.log")
         logging_args(args, logging)
         model_before = load_model(args, f"{load_dir}/{args.before}", device)
         model_after = load_model(args, f"{load_dir}/{args.after}", device)
-        model_decoded = load_model(args, f"{save_dir}/decoded{args.after}", device)
+        model_decoded = load_model(args, f"{save_dir}/decoded{args.after}-{loop_num}-{finetune_epochs}", device)
     
         if args.mode == "acc":
-            calc_acc(args, model_before, model_after, model_decoded, save_dir, logging)
+            calc_acc(args, model_before, model_after, model_decoded, 
+                     loop_num, finetune_epochs, save_dir, logging)
         elif args.mode == "output":
-            check_output(args, model_before, model_after, model_decoded, device, save_dir, logging)
+            check_output(args, model_before, model_after, model_decoded, device, 
+                         loop_num, finetune_epochs, save_dir, logging)
         else:
             raise NotImplementedError
     

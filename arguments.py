@@ -33,8 +33,8 @@ def get_args():
         choices=["encode", "decode", "acc", "output"],
         help="Mode of operation")
     parser.add_argument("--fixed", action="store_true", default=False, help="Fixed-point flag")
-    parser.add_argument("--msg-len", type=check_max_length, default=32, help="Bits of parameters to encode")
-    parser.add_argument("--t", type=int, default=16, help="t-byte redundancy")
+    parser.add_argument("--msg-len", type=check_max_length, default=16, help="Bits of parameters to encode")
+    parser.add_argument("--t", type=int, default=8, help="t-byte redundancy")
     # prune
     parser.add_argument("--target-ratio", type=check_range_ratio, default=1.0, 
         help="Parameter ratio to be error-corrected")

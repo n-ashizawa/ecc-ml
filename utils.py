@@ -509,15 +509,16 @@ def get_intlist_from_strlist(strlist):
     return intlist
 
 
-def get_params_info(args, model, save_dir):
-
+def get_params_info(args, model, save_data_file):
     state_dict = model.state_dict()
     params = {"p_m":[], "s_m":[], "b_m":[]}
     
     if args.target_ratio < 1.0:
-        correct_targets_name = get_name_from_correct_targets(args, model, save_dir)
+        correct_targets_name = get_name_from_correct_targets(args, model, save_data_file=save_data_file)
         modules = {name: module for name, module in model.named_modules()}
-        weight_ids = None
+
+    weight_ids_out = None
+    weight_ids_in = None
     
     for name in state_dict:
         if "num_batches_tracked" in name:
@@ -530,22 +531,29 @@ def get_params_info(args, model, save_dir):
             is_weight = (name.split('.')[-1] == "weight")
             is_target = layer in correct_targets_name   # conv or embedding
             is_linear = layer in modules and isinstance(modules[layer], torch.nn.Linear)   # linear
+            if is_target:
+                weight_ids_out = correct_targets_name[layer]
         
         for ids, value in enumerate(param.view(-1)):
             if args.target_ratio < 1.0:
+                skip_flag = False
                 original_index = np.unravel_index(ids, param.shape)
-                if is_target or is_linear:   # conv/embedding or linear
-                    if is_weight and weight_ids is not None:   # weight
-                        if original_index[1] not in weight_ids:   # targets
-                            continue
-                if is_target:   # conv or embedding
-                    weight_ids = correct_targets_name[layer]   # update
                 
-                if not is_linear:
-                    if weight_ids is None:
-                        continue
-                    if original_index[0] not in weight_ids:   # not targets
-                        continue
+                if is_target or not is_linear:
+                    if weight_ids_out is None:
+                        skip_flag = True
+                    elif original_index[0] not in weight_ids_out:
+                        skip_flag = True
+
+                if is_target or is_linear:   # conv/embedding or linear
+                    if is_weight:
+                        if weight_ids_in is None:
+                            skip_flag = True
+                        elif original_index[1] not in weight_ids_in:
+                            skip_flag = True
+                
+                if skip_flag:
+                    continue
             
             (p_m, s_m_all, b_m_all), _ = get_bin_from_param(value.item(), length=args.msg_len, fixed=args.fixed)
              # limit bits
@@ -554,6 +562,8 @@ def get_params_info(args, model, save_dir):
             params["p_m"].append(p_m)
             params["s_m"].append(s_m)
             params["b_m"].append(b_m)
+
+        weight_ids_in = weight_ids_out   # update
     return params
 
 
@@ -644,8 +654,9 @@ def make_savedir(args):
     return save_dir
 
 
-def get_name_from_correct_targets(args, model, save_dir):
-    save_data_file = f"{'/'.join(make_savedir(args).split('/')[:6])}/{args.seed}_targets.npy"
+def get_name_from_correct_targets(args, model, save_dir=None, save_data_file=None):
+    if save_dir is not None:
+        save_data_file = f"{save_dir}/{args.seed}_targets.npy"
     targets = np.load(save_data_file)
     prune_layers = model.get_prune_layers()
 

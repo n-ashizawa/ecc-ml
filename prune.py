@@ -200,6 +200,7 @@ def get_candidates_to_correct(args, model, train_loader, num_filters_to_correct,
 def prune(args, model, device, save_data_file, logging):
     loop_num = 1
     finetune_epochs = 1
+    save_data_file = f"{save_data_file.split('.npy')[0]}-{loop_num}-{finetune_epochs}.npy"
     train_loader, test_loader, _ = prepare_dataset(args)
     
     number_of_filters = total_num_filters(args, model)
@@ -221,7 +222,7 @@ def prune(args, model, device, save_data_file, logging):
     modules = {name: module for name, module in model.named_modules()}
     
     for i in range(loop_num):
-        correct_targets_name = get_name_from_correct_targets(args, model, save_data_file.split('_targets.npy')[0])
+        correct_targets_name = get_name_from_correct_targets(args, model, save_data_file=save_data_file)
         weight_ids_out = None
         weight_ids_in = None
         
@@ -250,8 +251,10 @@ def prune(args, model, device, save_data_file, logging):
                             skip_flag = True
                 
                 if skip_flag:
+                    param = param.detach()
                     param.view(-1)[ids].requires_grad = False
                 else:
+                    param = param.detach()
                     param.view(-1)[ids].requires_grad = True
 
         # 更新しないパラメータの勾配計算も行う
@@ -286,8 +289,8 @@ def main():
         raise NotImplementedError
 
     load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model"
-    target_ratio = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-    #target_ratio = [0.1, 0.3, 0.6, 0.7, 0.8]
+    #target_ratio = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    target_ratio = [args.target_ratio]
     
     for t in target_ratio:
         args.target_ratio = t
