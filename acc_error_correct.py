@@ -219,6 +219,7 @@ def main():
 
     loop_num = 0
     finetune_epochs = 0
+
     save_data_file = f"{save_dir}/{args.mode}{args.after}-{loop_num}-{finetune_epochs}.txt"
     if not os.path.isfile(save_data_file):
         logging = get_logger(f"{save_dir}/{args.mode}{args.after}-{loop_num}-{finetune_epochs}.log")
