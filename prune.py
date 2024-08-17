@@ -198,8 +198,9 @@ def get_candidates_to_correct(args, model, train_loader, num_filters_to_correct,
         
         
 def prune(args, model, device, save_data_file, logging):
-    loop_num = 1
-    finetune_epochs = 1
+    loop_num = 0
+    finetune_epochs = 0
+
     save_data_file = f"{save_data_file.split('.npy')[0]}-{loop_num}-{finetune_epochs}.npy"
     train_loader, test_loader, _ = prepare_dataset(args)
     
