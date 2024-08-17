@@ -1,4 +1,9 @@
-train/*
-tb_data/*
+.env/*
+.DS_Store
+.python-version
+
 __pycache__/*
 network/__pycache__/*
+
+train/*
+tb_data/*

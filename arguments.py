@@ -16,7 +16,8 @@ def get_args():
                     "mlp", "mtmlp", "cnn", "mtcnn"])
     parser.add_argument("--dataset", type=str, default="cifar10", 
         choices=["cifar10", "cifar100", "classification", "splitmnist", "splitcifar10"])
-    parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cuda:0", "cuda:1", "cpu"])
+    parser.add_argument("--device", type=str, default="cuda", 
+        choices=["cuda", "cuda:0", "cuda:1", "mps", "cpu"])
     parser.add_argument("--clalgo", type=str, default=None, 
         choices=["naive", "cumulative"])
     # train

@@ -666,6 +666,8 @@ def model_to_parallel(uni_model, device):
         parallel_model = nn.DataParallel(uni_model, device_ids=[0,1])
         device_staging = torch.device("cuda:0")
         return parallel_model.to(device_staging)
+    elif device.type == 'mps':
+        return uni_model.to("mps")
     elif device.type == 'cpu':
         return uni_model.to("cpu")
     else:
