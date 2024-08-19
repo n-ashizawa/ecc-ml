@@ -75,6 +75,9 @@ def make_model(args, device, n_classes=10):
 def load_model(args, file_name, device, n_classes=10):
     model = make_model(args, torch.device("cpu"), n_classes)
     # load the real state dict
+    if args.arch == "mtmlp":
+        model.classifier.active_units_T0 = torch.tensor([0]*10, dtype=torch.int8)
+        model.classifier.classifiers['0'].classifier = nn.Linear(in_features=512, out_features=10, bias=True)
     model.load_state_dict(torch.load(f"{file_name}.pt", map_location="cpu"))
     print(f"{file_name} model loaded.")
     return model_to_parallel(model, device)
@@ -645,10 +648,16 @@ def make_savedir(args):
     else:
         raise NotImplementedError
 
-    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.pretrained}/{args.before}"\
-        f"/{'random' if args.random_target else 'prune'}/{args.target_ratio}"\
-            f"/{args.msg_len}/{args.fixed}/{args.ecc}/{args.t}"\
-                f"/{args.seed}"
+    if args.clalgo is None:
+        save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.pretrained}/{args.before}"\
+            f"/{'random' if args.random_target else 'prune'}/{args.target_ratio}"\
+                f"/{args.msg_len}/{args.fixed}/{args.ecc}/{args.t}"\
+                    f"/{args.seed}"
+    else:
+        save_dir = f"./ecc/{args.clalgo}-{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.pretrained}/{args.before}"\
+            f"/{'random' if args.random_target else 'prune'}/{args.target_ratio}"\
+                f"/{args.msg_len}/{args.fixed}/{args.ecc}/{args.t}"\
+                    f"/{args.seed}"
     os.makedirs(save_dir, exist_ok=True)
 
     return save_dir
