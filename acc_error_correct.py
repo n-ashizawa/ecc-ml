@@ -204,6 +204,8 @@ def main():
         device = torch.device("cpu")
     elif args.mode == "output":
         device = torch.device(args.device)
+    else:
+        raise NotImplementedError
 
     if args.over_fitting:
         mode = "over-fitting"
