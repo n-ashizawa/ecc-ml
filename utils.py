@@ -78,7 +78,10 @@ def load_model(args, file_name, device, n_classes=10):
     if args.arch == "mtmlp":
         model.classifier.active_units_T0 = torch.tensor([0]*10, dtype=torch.int8)
         model.classifier.classifiers['0'].classifier = nn.Linear(in_features=512, out_features=10, bias=True)
-    model.load_state_dict(torch.load(f"{file_name}.pt", map_location="cpu"))
+    elif args.arch == "mtcnn":
+        model.classifier.active_units_T0 = torch.tensor([0]*10, dtype=torch.int8)
+        model.classifier.classifiers['0'].classifier = nn.Linear(in_features=64, out_features=10, bias=True)
+    model.load_state_dict(torch.load(f"{file_name}.pt", map_location="cpu", weights_only=True))
     print(f"{file_name} model loaded.")
     return model_to_parallel(model, device)
 
