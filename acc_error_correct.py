@@ -105,9 +105,13 @@ def check_output(args, model_before, model_after, model_decoded, device,
     dist_data = np.load(save_data_file)   # dist_data["indice"], dist_data["outputs"]
     fail, deterioration = check_output_dist(args, model_before, model_decoded, test_loader, dist_data, device)
     
-    before_acc, before_loss = test(args, model_before, test_loader, device)
-    after_acc, after_loss = test(args, model_after, test_loader, device)
-    decoded_acc, decoded_loss = test(args, model_decoded, test_loader, device)
+    if args.clalgo is None:
+        before_acc, before_loss = test(args, model_before, test_loader, device)
+        after_acc, after_loss = test(args, model_after, test_loader, device)
+        decoded_acc, decoded_loss = test(args, model_decoded, test_loader, device)
+    else:
+        ### ここに処理を追加 ###
+        exit()
     logging.info(f"Before\tacc: {before_acc},\tloss: {before_loss}")
     logging.info(f"After\tacc: {after_acc},\tloss: {after_loss}")
     logging.info(f"Decoded\tacc: {decoded_acc},\tloss: {decoded_loss}")
@@ -204,6 +208,8 @@ def main():
         device = torch.device("cpu")
     elif args.mode == "output":
         device = torch.device(args.device)
+    else:
+        raise NotImplementedError
 
     if args.over_fitting:
         mode = "over-fitting"
@@ -214,7 +220,10 @@ def main():
     else:
         raise NotImplementedError
 
-    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model"
+    if args.clalgo is None:
+        load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model"
+    else:
+        load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model-{args.clalgo}"
     save_dir = make_savedir(args)
 
     loop_num = 0

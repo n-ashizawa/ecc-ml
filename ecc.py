@@ -220,7 +220,10 @@ def main():
     else:
         raise NotImplementedError
 
-    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model"
+    if args.clalgo is None:
+        load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model"
+    else:
+        load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model-{args.clalgo}"
     save_dir = make_savedir(args)
     
     if args.ecc == "rs":
