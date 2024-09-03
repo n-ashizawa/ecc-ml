@@ -24,8 +24,8 @@ from transformers import BertTokenizer
 
 from network import *
 
-from avalanche.models import SimpleMLP, MTSimpleMLP, SimpleCNN, MTSimpleCNN
-from avalanche.benchmarks.classic import SplitMNIST, SplitCIFAR10
+#from avalanche.models import SimpleMLP, MTSimpleMLP, SimpleCNN, MTSimpleCNN
+#from avalanche.benchmarks.classic import SplitMNIST, SplitCIFAR10
 
 
 def torch_fix_seed(seed=42):
@@ -686,7 +686,7 @@ def get_name_from_correct_targets(args, model, save_dir=None, save_data_file=Non
 
 def model_to_parallel(uni_model, device):
     if device.type == 'cuda':
-        parallel_model = nn.DataParallel(uni_model, device_ids=[0,1])
+        parallel_model = nn.DataParallel(uni_model, device_ids=list(range(torch.cuda.device_count())))
         device_staging = torch.device("cuda:0")
         return parallel_model.to(device_staging)
     elif device.type == 'mps':

@@ -40,6 +40,8 @@ def get_args():
         help="Parameter ratio to be error-corrected")
     parser.add_argument("--random-target", action="store_true", default=False, 
         help="Whether to randomly select the target for error correction")
+    parser.add_argument("--loop-num", type=int, default=0)
+    parser.add_argument("--finetune-epochs", type=int, default=0)
     args = parser.parse_args()
     return args
 

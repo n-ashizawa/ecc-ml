@@ -20,8 +20,8 @@ from logger import get_logger, logging_args
 
 def encode_before(args, model_before, ECC, save_dir, logging):
     # Get the state dict
-    loop_num = 0
-    finetune_epochs = 0
+    loop_num = args.loop_num
+    finetune_epochs = args.finetune_epochs
     
     model_encoded = copy.deepcopy(model_before)
     state_dict_before = model_before.state_dict()
@@ -113,8 +113,8 @@ def encode_before(args, model_before, ECC, save_dir, logging):
 
 def decode_after(args, model_after, ECC, save_dir, logging):
     # Get the state dict
-    loop_num = 0
-    finetune_epochs = 0
+    loop_num = args.loop_num
+    finetune_epochs = args.finetune_epochs
 
     model_decoded = copy.deepcopy(model_after)
     state_dict_after = model_after.state_dict()

@@ -19,12 +19,12 @@ from utils import *
 from arguments import get_args
 from logger import get_logger, logging_args
 
-from avalanche.evaluation.metrics import forgetting_metrics, accuracy_metrics,\
-    loss_metrics, timing_metrics, cpu_usage_metrics, StreamConfusionMatrix,\
-    disk_usage_metrics
-from avalanche.logging import InteractiveLogger, TextLogger, TensorboardLogger
-from avalanche.training.plugins import EvaluationPlugin
-from avalanche.training import Naive, Cumulative
+#from avalanche.evaluation.metrics import forgetting_metrics, accuracy_metrics,\
+#    loss_metrics, timing_metrics, cpu_usage_metrics, StreamConfusionMatrix,\
+#    disk_usage_metrics
+#from avalanche.logging import InteractiveLogger, TextLogger, TensorboardLogger
+#from avalanche.training.plugins import EvaluationPlugin
+#from avalanche.training import Naive, Cumulative
 
 
 def main():

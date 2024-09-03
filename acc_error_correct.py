@@ -226,8 +226,8 @@ def main():
         load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model-{args.clalgo}"
     save_dir = make_savedir(args)
 
-    loop_num = 0
-    finetune_epochs = 0
+    loop_num = args.loop_num
+    finetune_epochs = args.finetune_epochs
 
     save_data_file = f"{save_dir}/{args.mode}{args.after}-{loop_num}-{finetune_epochs}.txt"
     if not os.path.isfile(save_data_file):
