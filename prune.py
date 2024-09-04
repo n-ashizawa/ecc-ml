@@ -95,11 +95,13 @@ class FilterPrunner:
         return random_data 
 
 
-    def highest_ranking_filters(self, num):
+    def highest_ranking_filters(self, num, already_targets):
         data = []
         for i in sorted(self.filter_ranks.keys()):
             for j in range(self.filter_ranks[i].size(0)):
-                data.append((self.activation_to_layer[i], j, self.filter_ranks[i][j]))
+                layer = self.activation_to_layer[i]
+                if (layer, j) not in already_targets:
+                    data.append((self.activation_to_layer[i], j, self.filter_ranks[i][j]))
 
         return nlargest(num, data, itemgetter(2))
 
@@ -109,11 +111,11 @@ class FilterPrunner:
             v = v / np.sqrt(torch.sum(v * v))
             self.filter_ranks[i] = v.cpu()
 
-    def get_pruning_plan(self, args, num_filters_to_correct):
+    def get_pruning_plan(self, args, num_filters_to_correct, already_targets):
         if args.random_target:
             filters_to_correct = self.random_ranking_filters(num_filters_to_correct)
         else:
-            filters_to_correct = self.highest_ranking_filters(num_filters_to_correct)
+            filters_to_correct = self.highest_ranking_filters(num_filters_to_correct, already_targets)
 
         # After each of the k filters are prunned,
         # the filter index of the next filters change since the model is smaller.
@@ -189,12 +191,12 @@ def train_epoch(args, model, prunner, train_loader, device, optimizer=None, rank
         train_batch(args, model, prunner, optimizer, data, rank_filters, device)
 
 
-def get_candidates_to_correct(args, model, train_loader, num_filters_to_correct, device):
+def get_candidates_to_correct(args, model, train_loader, num_filters_to_correct, already_targets, device):
     prunner = FilterPrunner(model, args.arch, device) 
     if not args.random_target:
         train_epoch(args, model, prunner, train_loader, device, rank_filters=True)
         prunner.normalize_ranks_per_layer()
-    return prunner.get_pruning_plan(args, num_filters_to_correct)
+    return prunner.get_pruning_plan(args, num_filters_to_correct, already_targets)
         
         
 def prune(args, model, device, save_data_file, logging):
@@ -208,10 +210,11 @@ def prune(args, model, device, save_data_file, logging):
     total_num_filters_to_correct = int(number_of_filters * args.target_ratio)
     logging.info(f"Total number of parameters to correct {args.target_ratio*100}% filters: {total_num_filters_to_correct}")
 
-    num_filters_to_correct_per_loop = int(number_of_filters * args.target_ratio // loop_num)
+    num_filters_to_correct_per_loop = int(number_of_filters * args.target_ratio // (loop_num+1))
     logging.info(f"Number of parameters to correct {args.target_ratio*100}% filters per loop: {num_filters_to_correct_per_loop}")
 
-    targets = get_candidates_to_correct(args, model, train_loader, total_num_filters_to_correct, device)
+    targets = []
+    targets = get_candidates_to_correct(args, model, train_loader, num_filters_to_correct_per_loop, targets, device)
     np.save(save_data_file, targets)
         
     name_list = []
@@ -235,21 +238,21 @@ def prune(args, model, device, save_data_file, logging):
                 weight_ids_out = correct_targets_name[layer]
 
             for ids, _ in enumerate(param.view(-1)):
-                skip_flag = False
+                skip_flag = True
                 original_index = np.unravel_index(ids, param.shape)
                 
                 if is_target or not is_linear:
                     if weight_ids_out is None:
-                        skip_flag = True
+                        skip_flag = False
                     if original_index[0] not in weight_ids_out:
-                        skip_flag = True
+                        skip_flag = False
 
                 if is_target or is_linear:   # conv/embedding or linear
                     if is_weight:
                         if weight_ids_in is None:
-                            skip_flag = True
+                            skip_flag = False
                         if original_index[1] not in weight_ids_in:
-                            skip_flag = True
+                            skip_flag = False
                 
                 if skip_flag:
                     param = param.detach()
@@ -271,7 +274,8 @@ def prune(args, model, device, save_data_file, logging):
             logging.info(f"VAL ACC: {acc:.6f}\t"
                 f"VAL LOSS: {loss:.6f}")
             
-        targets = get_candidates_to_correct(args, model, train_loader, total_num_filters_to_correct, device)
+        targets.extend(get_candidates_to_correct(
+            args, model, train_loader, num_filters_to_correct_per_loop, targets, device))
         np.save(save_data_file, targets)
 
         
