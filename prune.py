@@ -226,6 +226,7 @@ def prune(args, model, device, save_data_file, logging):
     modules = {name: module for name, module in model.named_modules()}
     
     for i in range(loop_num):
+        """
         correct_targets_name = get_name_from_correct_targets(args, model, save_data_file=save_data_file)
         weight_ids_out = None
         weight_ids_in = None
@@ -260,7 +261,8 @@ def prune(args, model, device, save_data_file, logging):
                 else:
                     param = param.detach()
                     param.view(-1)[ids].requires_grad = True
-
+        """
+        
         # 更新しないパラメータの勾配計算も行う
         optimizer = make_optim(args, model)
 
