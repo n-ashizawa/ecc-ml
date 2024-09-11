@@ -108,7 +108,7 @@ class FilterPrunner:
     def normalize_ranks_per_layer(self):
         for i in self.filter_ranks:
             v = torch.abs(self.filter_ranks[i].cpu())
-            v = v / np.sqrt(torch.sum(v * v))
+            v = v / np.sqrt(np.array(torch.sum(v * v)))
             self.filter_ranks[i] = v.cpu()
 
     def get_pruning_plan(self, args, num_filters_to_correct, already_targets):
@@ -226,6 +226,7 @@ def prune(args, model, device, save_data_file, logging):
     modules = {name: module for name, module in model.named_modules()}
     
     for i in range(loop_num):
+        """
         correct_targets_name = get_name_from_correct_targets(args, model, save_data_file=save_data_file)
         weight_ids_out = None
         weight_ids_in = None
@@ -260,7 +261,8 @@ def prune(args, model, device, save_data_file, logging):
                 else:
                     param = param.detach()
                     param.view(-1)[ids].requires_grad = True
-
+        """
+        
         # 更新しないパラメータの勾配計算も行う
         optimizer = make_optim(args, model)
 
