@@ -1,8 +1,3 @@
-'''
-MIT License
-Copyright (c) 2023 fseclab-osaka
-'''
-
 import os
 import csv
 
@@ -54,10 +49,7 @@ def main():
     torch_fix_seed(args.seed)
     device = torch.device(args.device)
 
-    if args.arch == "bert":
-        seeds = [1]
-    else:
-        seeds = [1, 2, 3, 4]
+    seeds = [1, 2, 3, 4]
     
     if args.over_fitting:
         mode = "over-fitting"

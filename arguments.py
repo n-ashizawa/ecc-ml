@@ -18,8 +18,6 @@ def get_args():
         choices=["cifar10", "cifar100", "classification", "splitmnist", "splitcifar10"])
     parser.add_argument("--device", type=str, default="cuda", 
         choices=["cuda", "cuda:0", "cuda:1", "mps", "cpu"])
-    parser.add_argument("--clalgo", type=str, default=None, 
-        choices=["naive", "cumulative"])
     # train
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate for training")
     parser.add_argument("--epoch", type=int, default=100, help="Number of epochs for training")
@@ -40,8 +38,6 @@ def get_args():
         help="Parameter ratio to be error-corrected")
     parser.add_argument("--random-target", action="store_true", default=False, 
         help="Whether to randomly select the target for error correction")
-    parser.add_argument("--loop-num", type=int, default=0)
-    parser.add_argument("--finetune-epochs", type=int, default=0)
     args = parser.parse_args()
     return args
 

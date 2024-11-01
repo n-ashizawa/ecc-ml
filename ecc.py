@@ -1,8 +1,3 @@
-'''
-MIT License
-Copyright (c) 2023 fseclab-osaka
-'''
-
 import os
 import copy
 import time
@@ -20,15 +15,12 @@ from logger import get_logger, logging_args
 
 def encode_before(args, model_before, ECC, save_dir, logging):
     # Get the state dict
-    loop_num = args.loop_num
-    finetune_epochs = args.finetune_epochs
-    
     model_encoded = copy.deepcopy(model_before)
     state_dict_before = model_before.state_dict()
     state_dict_encoded = model_encoded.state_dict()
     all_reds = []
     if args.target_ratio < 1.0:
-        save_data_file = f"{'/'.join(save_dir.split('/')[:-5])}/{args.seed}_targets-{loop_num}-{finetune_epochs}.npy"
+        save_data_file = f"{'/'.join(save_dir.split('/')[:-5])}/{args.seed}_targets.npy"
         correct_targets_name = get_name_from_correct_targets(args, model_before, save_data_file=save_data_file)
         modules_before = {name: module for name, module in model_before.named_modules()}
     
@@ -103,29 +95,26 @@ def encode_before(args, model_before, ECC, save_dir, logging):
 
         weight_ids_in = weight_ids_out   # update
 
-    write_varlen_csv(all_reds, f"{save_dir}/reds-{loop_num}-{finetune_epochs}")
+    write_varlen_csv(all_reds, f"{save_dir}/reds")
 
     # Load the modified state dict
     model_encoded.load_state_dict(state_dict_encoded)
-    save_model(model_encoded, f"{save_dir}/encoded-{loop_num}-{finetune_epochs}")
+    save_model(model_encoded, f"{save_dir}/encoded")
     del model_encoded
  
 
 def decode_after(args, model_after, ECC, save_dir, logging):
     # Get the state dict
-    loop_num = args.loop_num
-    finetune_epochs = args.finetune_epochs
-
     model_decoded = copy.deepcopy(model_after)
     state_dict_after = model_after.state_dict()
     state_dict_decoded = model_decoded.state_dict()
     # Load the encoded redidundants
-    all_reds_str = read_varlen_csv(f"{save_dir}/reds-{loop_num}-{finetune_epochs}")
+    all_reds_str = read_varlen_csv(f"{save_dir}/reds")
     all_reds = get_intlist_from_strlist(all_reds_str)
     logging.info("all redundants are loaded")
     
     if args.target_ratio < 1.0:
-        save_data_file = f"{'/'.join(save_dir.split('/')[:-5])}/{args.seed}_targets-{loop_num}-{finetune_epochs}.npy"
+        save_data_file = f"{'/'.join(save_dir.split('/')[:-5])}/{args.seed}_targets.npy"
         correct_targets_name = get_name_from_correct_targets(args, model_after, save_data_file=save_data_file)
         modules_after = {name: module for name, module in model_after.named_modules()}
         
@@ -202,7 +191,7 @@ def decode_after(args, model_after, ECC, save_dir, logging):
 
     # Load the modified state dict
     model_decoded.load_state_dict(state_dict_decoded)
-    save_model(model_decoded, f"{save_dir}/decoded{args.after}-{loop_num}-{finetune_epochs}")
+    save_model(model_decoded, f"{save_dir}/decoded{args.after}")
     del model_decoded
 
 
@@ -220,10 +209,7 @@ def main():
     else:
         raise NotImplementedError
 
-    if args.clalgo is None:
-        load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model"
-    else:
-        load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model-{args.clalgo}"
+    load_dir = f"./train/{args.dataset}/{args.arch}/{args.epoch}/{args.lr}/{mode}{args.pretrained}/{args.seed}/model"
     save_dir = make_savedir(args)
     
     if args.ecc == "rs":

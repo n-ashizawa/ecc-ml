@@ -1,13 +1,6 @@
-.DS_Store
-.env/*
-.venv/*
-.python-version
-*.sh
-
 __pycache__/*
 network/__pycache__/*
 ErrorCorrectingCode/__pycache__/*
 
 train/*
-tb_data/*
 ecc/*

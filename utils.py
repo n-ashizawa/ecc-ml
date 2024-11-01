@@ -1,8 +1,3 @@
-'''
-MIT License
-Copyright (c) 2023 fseclab-osaka
-'''
-
 import random
 import struct
 from decimal import Decimal
@@ -20,12 +15,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 
-from transformers import BertTokenizer
-
 from network import *
-
-#from avalanche.models import SimpleMLP, MTSimpleMLP, SimpleCNN, MTSimpleCNN
-#from avalanche.benchmarks.classic import SplitMNIST, SplitCIFAR10
 
 
 def torch_fix_seed(seed=42):
@@ -41,34 +31,20 @@ def torch_fix_seed(seed=42):
 
 
 def make_model(args, device, n_classes=10):
-    if args.clalgo is not None:
-        if args.arch == "mlp":
-            model = SimpleMLP(num_classes=n_classes)
-        elif args.arch == "mtmlp":
-            model = MTSimpleMLP()
-        elif args.arch == "cnn":
-            model = SimpleCNN(num_classes=n_classes)
-        elif args.arch == "mtcnn":
-            model = MTSimpleCNN()
-        else:
-            raise NotImplementedError
+    if args.dataset == "cifar10":
+        if args.arch == "resnet18":
+            model = ResNet18()
+        elif args.arch == "resnet152":
+            model = ResNet152()
+        elif "VGG" in args.arch:
+            model = VGG(args.arch)
+        elif args.arch=="vit":
+            model = ViT(
+                image_size = 32, patch_size = 4, num_classes = 10, dim = 512,   # setting from args in original codes
+                depth = 6, heads = 8, mlp_dim = 512, dropout = 0.1, emb_dropout = 0.1
+            )
     else:
-        if args.dataset == "cifar10":
-            if args.arch == "resnet18":
-                model = ResNet18()
-            elif args.arch == "resnet152":
-                model = ResNet152()
-            elif "VGG" in args.arch:
-                model = VGG(args.arch)
-            elif args.arch=="vit":
-                model = ViT(
-                    image_size = 32, patch_size = 4, num_classes = 10, dim = 512,   # setting from args in original codes
-                    depth = 6, heads = 8, mlp_dim = 512, dropout = 0.1, emb_dropout = 0.1
-                )
-        elif args.dataset == "classification":
-            model = BERTClass()
-        else:
-            raise NotImplementedError
+        raise NotImplementedError
     return model_to_parallel(model, device)
 
 
@@ -87,7 +63,7 @@ def load_model(args, file_name, device, n_classes=10):
 
 
 def make_optim(args, model):
-    if args.arch == "bert" or args.arch == "vit":
+    if args.arch == "vit":
         optimizer = torch.optim.Adam(params=model.parameters(), lr=args.lr)
     else:   # cnn
         optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
@@ -115,36 +91,16 @@ def get_outputs_cnn(model, data, device):
     return outputs, labels
     
 
-def get_outputs_bert(model, data, device):
-    ids = data['ids'].to(device, dtype=torch.long)
-    mask = data['mask'].to(device, dtype=torch.long)
-    token_type_ids = data['token_type_ids'].to(device, dtype=torch.long)
-    labels = data['targets'].to(device, dtype=torch.float)
-    outputs = model(ids, mask, token_type_ids)
-    return outputs, labels
-
-
 def to_pred_from_outputs_cnn(outputs):
     if isinstance(outputs, torch.Tensor):
         outputs = outputs.to("cpu").detach().numpy()
     return np.argmax(outputs, axis=1)
 
 
-def to_pred_from_outputs_bert(outputs):
-    if isinstance(outputs, np.ndarray):
-        outputs = torch.tensor(outputs)
-    return np.array(torch.sigmoid(outputs).cpu().detach().numpy().tolist()) >= 0.5
-
-
 def train(args, model, train_loader, optimizer, device):
-    if args.arch == "bert":
-        criterion = nn.BCEWithLogitsLoss()
-        get_outputs = get_outputs_bert
-        to_pred_from_outputs = to_pred_from_outputs_bert
-    else:
-        criterion = nn.CrossEntropyLoss()
-        get_outputs = get_outputs_cnn
-        to_pred_from_outputs = to_pred_from_outputs_cnn
+    criterion = nn.CrossEntropyLoss()
+    get_outputs = get_outputs_cnn
+    to_pred_from_outputs = to_pred_from_outputs_cnn
 
     model.train()
     losses = []
@@ -169,14 +125,9 @@ def train(args, model, train_loader, optimizer, device):
 
 
 def test(args, model, test_loader, device):
-    if args.arch == "bert":
-        criterion = nn.BCEWithLogitsLoss()
-        get_outputs = get_outputs_bert
-        to_pred_from_outputs = to_pred_from_outputs_bert
-    else:
-        criterion = nn.CrossEntropyLoss()
-        get_outputs = get_outputs_cnn
-        to_pred_from_outputs = to_pred_from_outputs_cnn
+    criterion = nn.CrossEntropyLoss()
+    get_outputs = get_outputs_cnn
+    to_pred_from_outputs = to_pred_from_outputs_cnn
     
     model.eval()
     losses = []
@@ -331,82 +282,67 @@ def load_classification(root, train=True, download=False, transform=None):
 
 
 def prepare_dataset(args, save_dir=""):
-    if args.clalgo is None:
-        if args.dataset == "cifar10":
-            load_dataset = datasets.CIFAR10
-            TRAIN_BATCH_SIZE = 256
-            VALID_BATCH_SIZE = 1024
-            NUM_WORKER = 2
-            n_classes = 10
-        elif args.dataset == "cifar100":   # https://github.com/weiaicunzai/pytorch-cifar100
-            load_dataset = datasets.CIFAR100
-            TRAIN_BATCH_SIZE = 256
-            VALID_BATCH_SIZE = 1024
-            NUM_WORKER = 2
-            n_classes = 100
-        elif args.dataset == "classification":
-            load_dataset = load_classification
-            TRAIN_BATCH_SIZE = 8
-            VALID_BATCH_SIZE = 4
-            NUM_WORKER = 0
-            n_classes = 10
-        else:
-            raise NotImplementedError
-    if args.clalgo is not None:
-        if args.dataset == "splitmnist":
-            benchmark = SplitMNIST(n_experiences=5)
-        elif args.dataset == "splitcifar10":
-            benchmark = SplitCIFAR10(n_experiences=5)
-        else:
-            raise NotImplementedError
-        train_loader = benchmark.train_stream
-        test_loader = benchmark.test_stream
-        n_classes = benchmark.n_classes
+    if args.dataset == "cifar10":
+        load_dataset = datasets.CIFAR10
+        TRAIN_BATCH_SIZE = 256
+        VALID_BATCH_SIZE = 1024
+        NUM_WORKER = 2
+        n_classes = 10
+    elif args.dataset == "cifar100":   # https://github.com/weiaicunzai/pytorch-cifar100
+        load_dataset = datasets.CIFAR100
+        TRAIN_BATCH_SIZE = 256
+        VALID_BATCH_SIZE = 1024
+        NUM_WORKER = 2
+        n_classes = 100
+    elif args.dataset == "classification":
+        load_dataset = load_classification
+        TRAIN_BATCH_SIZE = 8
+        VALID_BATCH_SIZE = 4
+        NUM_WORKER = 0
+        n_classes = 10
     else:
-        train_trans, test_trans = get_trans(args)
+        raise NotImplementedError
+    
+    train_trans, test_trans = get_trans(args)
         
-        train_set = load_dataset(
-            root="./train/data",
-            train=True,
-            download=True,
-            transform=train_trans,
-        )
-        test_set = load_dataset(
-            root="./train/data",
-            train=False,
-            download=True,
-            transform=test_trans,
-        )
+    train_set = load_dataset(
+        root="./train/data",
+        train=True,
+        download=True,
+        transform=train_trans,
+    )
+    test_set = load_dataset(
+        root="./train/data",
+        train=False,
+        download=True,
+        transform=test_trans,
+    )
 
-        # label flipping
-        train_set = label_flipping(args, train_set, save_dir=save_dir)
+    # label flipping
+    train_set = label_flipping(args, train_set, save_dir=save_dir)
 
-        if args.dataset == "classification":
-            MAX_LEN = 200
-            
-            # over-fitting
-            if args.over_fitting:
-                label_to_delete = 5   # 0-5
-                train_set = train_set[train_set.iloc[:, -1].apply(lambda x: x[label_to_delete] == 1)].reset_index(drop=True)
-                train_set = pd.concat([train_set]*100, ignore_index=True)
+    if args.dataset == "classification":
+        MAX_LEN = 200
+        
+        # over-fitting
+        if args.over_fitting:
+            label_to_delete = 5   # 0-5
+            train_set = train_set[train_set.iloc[:, -1].apply(lambda x: x[label_to_delete] == 1)].reset_index(drop=True)
+            train_set = pd.concat([train_set]*100, ignore_index=True)
 
-            tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-            train_set = CustomDataset(train_set, tokenizer, MAX_LEN)
-            test_set = CustomDataset(test_set, tokenizer, MAX_LEN)
+    train_loader = DataLoader(
+            train_set,
+            batch_size=TRAIN_BATCH_SIZE,
+            shuffle=True,
+            num_workers=NUM_WORKER
+    )
 
-        train_loader = DataLoader(
-                train_set,
-                batch_size=TRAIN_BATCH_SIZE,
-                shuffle=True,
-                num_workers=NUM_WORKER
-        )
-
-        test_loader = DataLoader(
-                test_set,
-                batch_size=VALID_BATCH_SIZE,
-                shuffle=False,
-                num_workers=NUM_WORKER
-        )
+    test_loader = DataLoader(
+            test_set,
+            batch_size=VALID_BATCH_SIZE,
+            shuffle=False,
+            num_workers=NUM_WORKER
+    )
 
     return train_loader, test_loader, n_classes
 
@@ -651,16 +587,10 @@ def make_savedir(args):
     else:
         raise NotImplementedError
 
-    if args.clalgo is None:
-        save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.pretrained}/{args.before}"\
-            f"/{'random' if args.random_target else 'prune'}/{args.target_ratio}"\
-                f"/{args.msg_len}/{args.fixed}/{args.ecc}/{args.t}"\
-                    f"/{args.seed}"
-    else:
-        save_dir = f"./ecc/{args.clalgo}-{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.pretrained}/{args.before}"\
-            f"/{'random' if args.random_target else 'prune'}/{args.target_ratio}"\
-                f"/{args.msg_len}/{args.fixed}/{args.ecc}/{args.t}"\
-                    f"/{args.seed}"
+    save_dir = f"./ecc/{args.dataset}-{args.arch}-{args.epoch}-{args.lr}-{mode}{args.pretrained}/{args.before}"\
+        f"/{'random' if args.random_target else 'prune'}/{args.target_ratio}"\
+            f"/{args.msg_len}/{args.fixed}/{args.ecc}/{args.t}"\
+                f"/{args.seed}"
     os.makedirs(save_dir, exist_ok=True)
 
     return save_dir
